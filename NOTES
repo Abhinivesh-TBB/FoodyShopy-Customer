@@ -1,0 +1,42 @@
+lib/
+│
+├── app/
+│   ├── app.dart
+│   ├── router.dart
+│   ├── theme.dart
+│   └── constants.dart
+│
+├── core/
+│   ├── api/
+│   ├── config/
+│   ├── network/
+│   ├── services/
+│   ├── storage/
+│   ├── utils/
+│   ├── errors/
+│   └── widgets/
+│
+├── features/
+│   ├── auth/
+│   │   ├── data/
+│   │   ├── domain/
+│   │   └── presentation/
+│   │
+│   ├── home/
+│   ├── restaurant/
+│   ├── cart/
+│   ├── checkout/
+│   ├── offers/
+│   ├── payment/
+│   ├── tracking/
+│   ├── orders/
+│   ├── profile/
+│   └── notifications/
+│
+├── shared/
+│   ├── models/
+│   ├── enums/
+│   ├── extensions/
+│   └── widgets/
+│
+└── main.dart
