@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../auth/login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -14,9 +15,22 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
+
     Timer(const Duration(milliseconds: 1500), () {
       if (mounted) {
         setState(() => _showWhite = true);
+
+        // Wait for the white fade animation to finish
+        Timer(const Duration(milliseconds: 600), () {
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const LoginScreen(), // or HomeScreen()
+              ),
+            );
+          }
+        });
       }
     });
   }
