@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
+import '../features/auth/login_screen.dart';
 import '../features/splash/splash_screen.dart';
-
+import '../features/auth/otp_screen.dart';
 class AppRoutes {
   AppRoutes._();
 
@@ -70,14 +70,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         name: AppRoutes.loginName,
         path: AppRoutes.login,
-        builder: (context, state) => const _Placeholder('Login'),
+        builder: (context, state) => const LoginScreen(),
       ),
 
       // OTP
       GoRoute(
         name: AppRoutes.otpName,
         path: AppRoutes.otp,
-        builder: (context, state) => const _Placeholder('OTP Verification'),
+        builder: (context, state) => const OtpScreen(),
       ),
 
       // Home
