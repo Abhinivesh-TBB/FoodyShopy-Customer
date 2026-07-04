@@ -4,26 +4,26 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../app/theme/app_text_styles.dart';
 import '../../app/router.dart';
-import '../../app/theme/theme.dart';
+
 import '../../shared/widgets/app_logo.dart';
 import '../../shared/widgets/primary_button.dart';
+import '../../features/auth/providers/auth_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class OtpScreen extends StatefulWidget {
+class OtpScreen extends ConsumerStatefulWidget {
   const OtpScreen({super.key});
 
   @override
-  State<OtpScreen> createState() => _OtpScreenState();
+  ConsumerState<OtpScreen> createState() => _OtpScreenState();
 }
 
-class _OtpScreenState extends State<OtpScreen> {
+class _OtpScreenState extends ConsumerState<OtpScreen> {
   final List<TextEditingController> _controllers = List.generate(
     6,
     (_) => TextEditingController(),
   );
 
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
-
-  bool _isLoading = false;
 
   int _seconds = 30;
 
@@ -51,29 +51,27 @@ class _OtpScreenState extends State<OtpScreen> {
     });
   }
 
-  void _verifyOtp() {
+  Future<void> _verifyOtp() async {
     final otp = _controllers.map((e) => e.text).join();
 
     if (otp.length != 6) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Enter the complete OTP')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please enter the complete OTP")),
+      );
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    final success = await ref.read(authProvider.notifier).verifyOtp(otp);
 
-    Future.delayed(const Duration(seconds: 2), () {
-      if (!mounted) return;
+    if (!mounted) return;
 
-      setState(() {
-        _isLoading = false;
-      });
-
+    if (success) {
       context.go(AppRoutes.home);
-    });
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Invalid OTP")));
+    }
   }
 
   @override
@@ -118,6 +116,7 @@ class _OtpScreenState extends State<OtpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authProvider);
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -140,7 +139,7 @@ class _OtpScreenState extends State<OtpScreen> {
               ),
 
               const SizedBox(height: 40),
-
+              Text("+91 ${authState.phoneNumber}", style: AppTextStyles.body),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: List.generate(6, otpBox),
@@ -168,7 +167,7 @@ class _OtpScreenState extends State<OtpScreen> {
 
               PrimaryButton(
                 text: "Verify & Continue",
-                isLoading: _isLoading,
+                isLoading: authState.isLoading,
                 onPressed: _verifyOtp,
               ),
 

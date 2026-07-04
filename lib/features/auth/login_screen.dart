@@ -3,24 +3,25 @@ import 'package:go_router/go_router.dart';
 
 import '/../app/theme/app_text_styles.dart';
 import '../../app/router.dart';
-import '../../app/theme/theme.dart';
+import '../../features/auth/providers/auth_provider.dart';
 import '../../shared/widgets/app_logo.dart';
 import '../../shared/widgets/custom_text_field.dart';
 import '../../shared/widgets/primary_button.dart';
 
-class LoginScreen extends StatefulWidget {
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
 
   final TextEditingController _phoneController = TextEditingController();
 
-  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -28,26 +29,27 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _continue() {
+  Future<void> _continue() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _isLoading = true;
-    });
+    final success = await ref
+        .read(authProvider.notifier)
+        .sendOtp(_phoneController.text.trim());
 
-    Future.delayed(const Duration(seconds: 1), () {
-      if (!mounted) return;
+    if (!mounted) return;
 
-      setState(() {
-        _isLoading = false;
-      });
-
+    if (success) {
       context.go(AppRoutes.otp);
-    });
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Failed to send OTP")));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authProvider);
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -113,7 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   PrimaryButton(
                     text: "Continue",
-                    isLoading: _isLoading,
+                    isLoading: authState.isLoading,
                     onPressed: _continue,
                   ),
 

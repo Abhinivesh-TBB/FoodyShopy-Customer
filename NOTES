@@ -1,42 +1,14 @@
-lib/
-│
-├── app/
-│   ├── app.dart
-│   ├── router.dart
-│   ├── theme.dart
-│   └── constants.dart
-│
-├── core/
-│   ├── api/
-│   ├── config/
-│   ├── network/
-│   ├── services/
-│   ├── storage/
-│   ├── utils/
-│   ├── errors/
-│   └── widgets/
-│
-├── features/
-│   ├── auth/
-│   │   ├── data/
-│   │   ├── domain/
-│   │   └── presentation/
-│   │
-│   ├── home/
-│   ├── restaurant/
-│   ├── cart/
-│   ├── checkout/
-│   ├── offers/
-│   ├── payment/
-│   ├── tracking/
-│   ├── orders/
-│   ├── profile/
-│   └── notifications/
-│
-├── shared/
-│   ├── models/
-│   ├── enums/
-│   ├── extensions/
-│   └── widgets/
-│
-└── main.dart
+Later, when your friend completes the backend
+
+You only change one line:
+
+Current:
+
+return MockAuthService();
+
+Later:
+
+return RealAuthService(ApiClient.dio);
+
+Everything else in your app continues to work.
+
