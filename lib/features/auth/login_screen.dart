@@ -7,7 +7,7 @@ import '../../features/auth/providers/auth_provider.dart';
 import '../../shared/widgets/app_logo.dart';
 import '../../shared/widgets/custom_text_field.dart';
 import '../../shared/widgets/primary_button.dart';
-
+import '../../core/utils/app_snackbar.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -41,9 +41,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (success) {
       context.go(AppRoutes.otp);
     } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Failed to send OTP")));
+      AppSnackbar.showError(context, "Failed to send OTP");
     }
   }
 

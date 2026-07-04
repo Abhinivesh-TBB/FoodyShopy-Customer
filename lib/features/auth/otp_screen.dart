@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../app/theme/app_text_styles.dart';
 import '../../app/router.dart';
-
+import '../../core/utils/app_snackbar.dart';
 import '../../shared/widgets/app_logo.dart';
 import '../../shared/widgets/primary_button.dart';
 import '../../features/auth/providers/auth_provider.dart';
@@ -55,9 +55,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     final otp = _controllers.map((e) => e.text).join();
 
     if (otp.length != 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter the complete OTP")),
-      );
+      AppSnackbar.showInfo(context, "Please enter the complete OTP");
       return;
     }
 
@@ -68,9 +66,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     if (success) {
       context.go(AppRoutes.home);
     } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Invalid OTP")));
+      AppSnackbar.showError(context, "Invalid OTP");
     }
   }
 
