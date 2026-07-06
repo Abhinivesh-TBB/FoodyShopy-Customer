@@ -2,10 +2,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/auth_service.dart';
 import '../services/mock_auth_service.dart';
+import '../services/auth_service_impl.dart';
+import '../../../core/storage/secure_storage_service.dart';
 
 /// Service Provider
 final authServiceProvider = Provider<AuthService>((ref) {
-  return MockAuthService();
+  // Set to false to use the real API gateway backend
+  final bool useMock = true;
+  // ignore: dead_code
+  return useMock ? MockAuthService() : AuthServiceImpl();
 });
 
 /// Authentication State
@@ -51,9 +56,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
     return success;
   }
+
+  Future<void> logout() async {
+    state = state.copyWith(isLoading: true);
+    await SecureStorageService.clearTokens();
+    state = const AuthState();
+  }
 }
 
 /// Provider
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   return AuthNotifier(ref.read(authServiceProvider));
 });
+

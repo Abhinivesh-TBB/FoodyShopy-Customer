@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '/../app/theme/app_text_styles.dart';
+import '../../app/theme/app_text_styles.dart';
 import '../../app/router.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../shared/widgets/app_logo.dart';

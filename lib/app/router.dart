@@ -4,6 +4,11 @@ import 'package:go_router/go_router.dart';
 import '../features/auth/login_screen.dart';
 import '../features/splash/splash_screen.dart';
 import '../features/auth/otp_screen.dart';
+import '../features/home/home_screen.dart';
+import '../features/restaurant/presentation/restaurant_detail_screen.dart';
+import '../features/cart/presentation/cart_screen.dart';
+import '../core/storage/secure_storage_service.dart';
+
 class AppRoutes {
   AppRoutes._();
 
@@ -58,6 +63,25 @@ final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: AppRoutes.splash,
 
+    redirect: (context, state) async {
+      final token = await SecureStorageService.getAccessToken();
+      final isLoggedIn = token != null && token.isNotEmpty;
+
+      final isLoggingIn = state.matchedLocation == AppRoutes.login ||
+          state.matchedLocation == AppRoutes.otp;
+
+      if (!isLoggedIn) {
+        if (!isLoggingIn && state.matchedLocation != AppRoutes.splash) {
+          return AppRoutes.login;
+        }
+      } else {
+        if (isLoggingIn) {
+          return AppRoutes.home;
+        }
+      }
+      return null;
+    },
+
     routes: [
       // Splash
       GoRoute(
@@ -84,7 +108,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         name: AppRoutes.homeName,
         path: AppRoutes.home,
-        builder: (context, state) => const _Placeholder('Home'),
+        builder: (context, state) => const HomeScreen(),
       ),
 
       // Restaurant Menu
@@ -93,8 +117,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.menu,
         builder: (context, state) {
           final restaurantId = state.pathParameters['restaurantId']!;
-
-          return _Placeholder('Restaurant Menu\nRestaurant ID: $restaurantId');
+          return RestaurantDetailScreen(restaurantId: restaurantId);
         },
       ),
 
@@ -102,7 +125,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         name: AppRoutes.cartName,
         path: AppRoutes.cart,
-        builder: (context, state) => const _Placeholder('Cart'),
+        builder: (context, state) => const CartScreen(),
       ),
 
       // Checkout
