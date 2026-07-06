@@ -7,6 +7,9 @@ import '../features/auth/otp_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/restaurant/presentation/restaurant_detail_screen.dart';
 import '../features/cart/presentation/cart_screen.dart';
+import '../features/location/screens/location_permission_screen.dart';
+import '../features/location/screens/select_address_screen.dart';
+import '../features/location/screens/map_picker_screen.dart';
 import '../core/storage/secure_storage_service.dart';
 
 class AppRoutes {
@@ -34,6 +37,9 @@ class AppRoutes {
   static const String tracking = '/tracking/:orderId';
   static const String history = '/history';
   static const String profile = '/profile';
+  static const String selectAddress = '/select-address';
+  static const String mapPicker = '/map-picker';
+  static const String locationPermission = '/location-permission';
 
   // Route Names
   static const String homeName = 'home';
@@ -43,6 +49,9 @@ class AppRoutes {
   static const String trackingName = 'tracking';
   static const String historyName = 'history';
   static const String profileName = 'profile';
+  static const String selectAddressName = 'selectAddress';
+  static const String mapPickerName = 'mapPicker';
+  static const String locationPermissionName = 'locationPermission';
 
   // =========================
   // Dynamic Paths
@@ -126,6 +135,27 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: AppRoutes.cartName,
         path: AppRoutes.cart,
         builder: (context, state) => const CartScreen(),
+      ),
+
+      // Location Permission
+      GoRoute(
+        name: AppRoutes.locationPermissionName,
+        path: AppRoutes.locationPermission,
+        builder: (context, state) => const LocationPermissionScreen(),
+      ),
+
+      // Select Address
+      GoRoute(
+        name: AppRoutes.selectAddressName,
+        path: AppRoutes.selectAddress,
+        builder: (context, state) => const SelectAddressScreen(),
+      ),
+
+      // Map Picker
+      GoRoute(
+        name: AppRoutes.mapPickerName,
+        path: AppRoutes.mapPicker,
+        builder: (context, state) => const MapPickerScreen(),
       ),
 
       // Checkout
