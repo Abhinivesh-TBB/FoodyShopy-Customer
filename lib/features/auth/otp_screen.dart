@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../../app/theme/app_text_styles.dart';
 import '../../app/router.dart';
@@ -32,7 +33,25 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
   @override
   void initState() {
     super.initState();
+    _setupFocusNodes();
     _startTimer();
+  }
+
+  void _setupFocusNodes() {
+    for (int i = 0; i < 6; i++) {
+      _focusNodes[i] = FocusNode(
+        onKeyEvent: (node, event) {
+          if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.backspace) {
+            if (_controllers[i].text.isEmpty && i > 0) {
+              _focusNodes[i - 1].requestFocus();
+              _controllers[i - 1].clear();
+              return KeyEventResult.handled;
+            }
+          }
+          return KeyEventResult.ignored;
+        },
+      );
+    }
   }
 
   void _startTimer() {
@@ -87,23 +106,48 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
 
   Widget otpBox(int index) {
     return SizedBox(
-      width: 50,
+      width: 48,
       child: TextField(
         controller: _controllers[index],
         focusNode: _focusNodes[index],
         keyboardType: TextInputType.number,
         textAlign: TextAlign.center,
-        maxLength: 1,
-
-        decoration: const InputDecoration(counterText: ""),
-
+        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+        inputFormatters: [
+          FilteringTextInputFormatter.digitsOnly,
+          LengthLimitingTextInputFormatter(6),
+        ],
+        decoration: InputDecoration(
+          counterText: "",
+          contentPadding: const EdgeInsets.symmetric(vertical: 12),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Colors.grey),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Colors.orange, width: 2),
+          ),
+        ),
         onChanged: (value) {
-          if (value.isNotEmpty && index < 5) {
-            _focusNodes[index + 1].requestFocus();
+          if (value.length == 6) {
+            for (int i = 0; i < 6; i++) {
+              _controllers[i].text = value[i];
+            }
+            _focusNodes[5].requestFocus();
+            _verifyOtp();
+            return;
           }
 
-          if (value.isEmpty && index > 0) {
-            _focusNodes[index - 1].requestFocus();
+          if (value.length > 1) {
+            _controllers[index].text = value.characters.last;
+            _controllers[index].selection = TextSelection.fromPosition(
+              TextPosition(offset: _controllers[index].text.length),
+            );
+          }
+
+          if (value.isNotEmpty && index < 5) {
+            _focusNodes[index + 1].requestFocus();
           }
         },
       ),
@@ -152,8 +196,23 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
 
               TextButton(
                 onPressed: _seconds == 0
-                    ? () {
-                        _startTimer();
+                    ? () async {
+                        final phone = ref.read(authProvider).phoneNumber;
+                        final success = await ref
+                            .read(authProvider.notifier)
+                            .sendOtp(phone);
+                        if (success && mounted) {
+                          _startTimer();
+                          AppSnackbar.showSuccess(
+                            context,
+                            "OTP resent successfully to +91 $phone",
+                          );
+                        } else if (mounted) {
+                          AppSnackbar.showError(
+                            context,
+                            "Failed to resend OTP",
+                          );
+                        }
                       }
                     : null,
                 child: const Text("Resend OTP"),

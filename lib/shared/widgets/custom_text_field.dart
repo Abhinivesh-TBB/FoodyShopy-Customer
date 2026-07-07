@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 //import '../../app/theme/theme.dart';
 import '../../app/theme/app_text_styles.dart';
 import '../../app/theme/app_colors.dart';
@@ -22,6 +23,8 @@ class CustomTextField extends StatelessWidget {
   final void Function(String)? onChanged;
 
   final int maxLines;
+  final List<dynamic>? inputFormatters; // Using dynamic/TextInputFormatter to support formatting
+  final TextInputAction? textInputAction;
 
   const CustomTextField({
     super.key,
@@ -37,6 +40,8 @@ class CustomTextField extends StatelessWidget {
     this.validator,
     this.onChanged,
     this.maxLines = 1,
+    this.inputFormatters,
+    this.textInputAction,
   });
 
   @override
@@ -50,6 +55,8 @@ class CustomTextField extends StatelessWidget {
       validator: validator,
       onChanged: onChanged,
       maxLines: maxLines,
+      inputFormatters: inputFormatters != null ? List<TextInputFormatter>.from(inputFormatters!) : null,
+      textInputAction: textInputAction,
 
       style: AppTextStyles.body,
 

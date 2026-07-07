@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_text_styles.dart';
@@ -83,6 +84,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     labelText: "Mobile Number",
                     hintText: "Enter your mobile number",
                     keyboardType: TextInputType.phone,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(10),
+                    ],
+                    textInputAction: TextInputAction.done,
 
                     prefix: const Padding(
                       padding: EdgeInsets.all(14),
