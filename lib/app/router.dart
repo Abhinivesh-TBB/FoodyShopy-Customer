@@ -14,6 +14,7 @@ import '../core/storage/secure_storage_service.dart';
 import 'theme/theme.dart';
 import '../features/home/presentation/views/history_view.dart';
 import '../features/orders/presentation/order_tracking_screen.dart';
+import '../features/auth/providers/auth_provider.dart';
 
 class AppRoutes {
   AppRoutes._();
@@ -70,10 +71,26 @@ class AppRoutes {
 /// Keeping the router inside Riverpod allows us to
 /// easily add authentication redirects later without
 /// changing the architecture.
+class RouterListenable extends ChangeNotifier {
+  final Ref _ref;
+
+  RouterListenable(this._ref) {
+    _ref.listen(
+      authProvider,
+      (previous, next) {
+        notifyListeners();
+      },
+    );
+  }
+}
+
 ///
 final routerProvider = Provider<GoRouter>((ref) {
+  final listenable = RouterListenable(ref);
+
   return GoRouter(
     initialLocation: AppRoutes.splash,
+    refreshListenable: listenable,
 
     redirect: (context, state) async {
       final token = await SecureStorageService.getAccessToken();
