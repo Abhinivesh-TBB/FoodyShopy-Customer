@@ -145,12 +145,15 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   ),
                   const Divider(height: 1, color: AppColors.divider),
                   // Add more items trigger
-                  ListTile(
-                    leading: const Icon(Icons.add_circle_outline, color: AppColors.primary),
-                    title: const Text('Add more items', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                    onTap: () {
-                      context.pop();
-                    },
+                  Material(
+                    color: Colors.transparent,
+                    child: ListTile(
+                      leading: const Icon(Icons.add_circle_outline, color: AppColors.primary),
+                      title: const Text('Add more items', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                      onTap: () {
+                        context.pop();
+                      },
+                    ),
                   ),
                 ],
               ),
@@ -491,13 +494,15 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                IconButton(
-                  icon: const Icon(Icons.remove, size: 14, color: AppColors.primary),
-                  onPressed: () {
+                InkWell(
+                  onTap: () {
                     ref.read(cartProvider.notifier).removeItem(item.item);
                   },
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
+                  borderRadius: const BorderRadius.horizontal(left: Radius.circular(5)),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    child: Icon(Icons.remove, size: 12, color: AppColors.primary),
+                  ),
                 ),
                 Text(
                   item.quantity.toString(),
@@ -507,13 +512,15 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                     fontSize: 13,
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.add, size: 14, color: AppColors.primary),
-                  onPressed: () {
+                InkWell(
+                  onTap: () {
                     ref.read(cartProvider.notifier).addItem(item.item, item.restaurantId, item.restaurantName);
                   },
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
+                  borderRadius: const BorderRadius.horizontal(right: Radius.circular(5)),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    child: Icon(Icons.add, size: 12, color: AppColors.primary),
+                  ),
                 ),
               ],
             ),
