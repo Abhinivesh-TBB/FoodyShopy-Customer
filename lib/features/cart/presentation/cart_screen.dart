@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:uuid/uuid.dart';
 
 import '../../../app/router.dart';
 import '../../../app/theme/app_colors.dart';
@@ -10,6 +9,9 @@ import '../../../shared/models/cart_item.dart';
 import '../../offers/providers/offer_provider.dart';
 import '../providers/cart_provider.dart';
 import '../../../core/utils/app_snackbar.dart';
+import '../../location/providers/location_provider.dart';
+import '../../payment/providers/payment_provider.dart';
+import '../../orders/providers/order_provider.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
   const CartScreen({super.key});
@@ -21,6 +23,7 @@ class CartScreen extends ConsumerStatefulWidget {
 class _CartScreenState extends ConsumerState<CartScreen> {
   final TextEditingController _couponController = TextEditingController();
   bool _isPlacingOrder = false;
+  PaymentMethod? _selectedPaymentMethod;
 
   @override
   void dispose() {
@@ -28,14 +31,36 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     super.dispose();
   }
 
+  String _getFormattedDate() {
+    final now = DateTime.now();
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    String period = now.hour >= 12 ? 'PM' : 'AM';
+    int hour = now.hour % 12;
+    if (hour == 0) hour = 12;
+    String min = now.minute.toString().padLeft(2, '0');
+    return '${now.day.toString().padLeft(2, '0')} ${months[now.month - 1]} ${now.year}, ${hour.toString().padLeft(2, '0')}:$min $period';
+  }
+
   @override
   Widget build(BuildContext context) {
     final cartState = ref.watch(cartProvider);
     final offerState = ref.watch(offerProvider);
+    final locationState = ref.watch(locationProvider);
+    final paymentState = ref.watch(paymentProvider);
+
+    if (_selectedPaymentMethod == null && paymentState.methods.isNotEmpty) {
+      _selectedPaymentMethod = paymentState.methods.firstWhere(
+        (e) => e.isDefault,
+        orElse: () => paymentState.methods.first,
+      );
+    }
 
     if (cartState.items.isEmpty) {
       return Scaffold(
+        backgroundColor: Colors.transparent,
         appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
           title: const Text('Cart'),
         ),
         body: Center(
@@ -44,7 +69,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.shopping_cart_outlined, size: 80, color: Colors.grey[300]),
+                Icon(Icons.shopping_cart_outlined, size: 80, color: Colors.grey[400]),
                 const SizedBox(height: 24),
                 Text(
                   'Your cart is empty',
@@ -75,7 +100,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final double grandTotal = (cartState.total - discount).clamp(0.0, double.infinity);
 
     return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -96,7 +124,12 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           children: [
             // List of items
             Container(
-              color: Colors.white,
+              margin: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 6),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.3)),
+              ),
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Column(
                 children: [
@@ -123,11 +156,14 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               ),
             ),
 
-            const SizedBox(height: 12),
-
             // Coupon Code Section
             Container(
-              color: Colors.white,
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.3)),
+              ),
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -238,11 +274,14 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               ),
             ),
 
-            const SizedBox(height: 12),
-
             // Billing Details Section
             Container(
-              color: Colors.white,
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.3)),
+              ),
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -278,31 +317,81 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               ),
             ),
 
-            const SizedBox(height: 12),
-
-            // Delivery Strip (Placeholder)
-            Container(
-              color: Colors.white,
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  const Icon(Icons.location_on, color: AppColors.primary, size: 24),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Deliver to Home', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                        Text(
-                          'HAL 2nd Stage, Indiranagar, Bengaluru',
-                          style: AppTextStyles.caption.copyWith(fontSize: 12),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
+            // Interactive Delivery Address Card
+            InkWell(
+              onTap: () => _showAddressSelectorSheet(context, ref, locationState),
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.3)),
+                ),
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    const Icon(Icons.location_on, color: AppColors.primary, size: 24),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Delivery Address', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          const SizedBox(height: 2),
+                          Text(
+                            locationState.activeAddressLine,
+                            style: AppTextStyles.caption.copyWith(fontSize: 12),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                    const Icon(Icons.keyboard_arrow_right, color: Colors.grey),
+                  ],
+                ),
+              ),
+            ),
+
+            // Interactive Payment Option Card
+            InkWell(
+              onTap: () => _showPaymentSelectorSheet(context, ref, paymentState),
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.3)),
+                ),
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Icon(
+                      _selectedPaymentMethod?.type == PaymentType.cod ? Icons.money : Icons.payment,
+                      color: AppColors.primary,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Payment Method', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          const SizedBox(height: 2),
+                          Text(
+                            _selectedPaymentMethod != null
+                                ? '${_selectedPaymentMethod!.title} (${_selectedPaymentMethod!.subtitle})'
+                                : 'Select Payment Method',
+                            style: AppTextStyles.caption.copyWith(fontSize: 12),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.keyboard_arrow_right, color: Colors.grey),
+                  ],
+                ),
               ),
             ),
 
@@ -311,7 +400,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         ),
       ),
       bottomSheet: Container(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
@@ -454,27 +543,436 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     );
   }
 
+  // Address Selector Bottom Sheet
+  void _showAddressSelectorSheet(BuildContext context, WidgetRef ref, LocationState locationState) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetCtx) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Select Delivery Address', style: AppTextStyles.heading2),
+            const SizedBox(height: 16),
+            if (locationState.savedAddresses.isEmpty) ...[
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Center(
+                  child: Text('No saved addresses found. Please add one in Profile tab.'),
+                ),
+              ),
+            ] else ...[
+              Expanded(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: locationState.savedAddresses.length,
+                  itemBuilder: (ctx, index) {
+                    final address = locationState.savedAddresses[index];
+                    final isSelected = locationState.activeAddressLine == address.addressLine;
+                    return ListTile(
+                      leading: Icon(
+                        address.label.toLowerCase().contains('home') ? Icons.home_outlined : Icons.work_outline,
+                        color: AppColors.primary,
+                      ),
+                      title: Text(address.label, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: Text(address.addressLine, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      trailing: isSelected ? const Icon(Icons.check_circle, color: AppColors.primary) : null,
+                      onTap: () {
+                        ref.read(locationProvider.notifier).selectActiveAddress(
+                              address.addressLine,
+                              address.latitude,
+                              address.longitude,
+                            );
+                        Navigator.pop(sheetCtx);
+                        AppSnackbar.showSuccess(context, "Address updated!");
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Payment Selector Bottom Sheet
+  void _showPaymentSelectorSheet(BuildContext context, WidgetRef ref, PaymentState paymentState) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetCtx) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Select Payment Method', style: AppTextStyles.heading2),
+            const SizedBox(height: 16),
+            Expanded(
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  // Pre-populate actual saved payment methods
+                  ...paymentState.methods.map((method) {
+                    final isSelected = _selectedPaymentMethod?.id == method.id;
+                    IconData payIcon = Icons.payment;
+                    if (method.type == PaymentType.upi) {
+                      payIcon = Icons.account_balance_wallet_outlined;
+                    } else if (method.type == PaymentType.cod) {
+                      payIcon = Icons.money;
+                    }
+
+                    return ListTile(
+                      leading: Icon(payIcon, color: AppColors.primary),
+                      title: Text(method.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: Text(method.subtitle),
+                      trailing: isSelected ? const Icon(Icons.check_circle, color: AppColors.primary) : null,
+                      onTap: () {
+                        setState(() {
+                          _selectedPaymentMethod = method;
+                        });
+                        Navigator.pop(sheetCtx);
+                      },
+                    );
+                  }),
+                  // Add Razorpay explicitly
+                  ListTile(
+                    leading: const Icon(Icons.flash_on, color: Colors.blueAccent),
+                    title: const Text('Pay via Razorpay', style: TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: const Text('Cards, Netbanking, UPI simulator gateway'),
+                    trailing: _selectedPaymentMethod?.id == 'razorpay_select'
+                        ? const Icon(Icons.check_circle, color: AppColors.primary)
+                        : null,
+                    onTap: () {
+                      setState(() {
+                        _selectedPaymentMethod = const PaymentMethod(
+                          id: 'razorpay_select',
+                          type: PaymentType.card,
+                          title: 'Razorpay Secure',
+                          subtitle: 'Cards, Netbanking, UPI',
+                          isDefault: false,
+                        );
+                      });
+                      Navigator.pop(sheetCtx);
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Razorpay Gateway Simulation Modal Dialog
+  void _showRazorpayGateway(BuildContext context, double total, VoidCallback onSuccess) {
+    showDialog(
+      context: context,
+      barrierDismissible: false, // Force interactive response
+      builder: (dialogCtx) {
+        bool payLoading = false;
+        bool paySuccess = false;
+        String selectedSubMethod = 'upi';
+
+        return StatefulBuilder(
+          builder: (context, setState) {
+            if (paySuccess) {
+              return AlertDialog(
+                backgroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.check_circle, color: Colors.green, size: 70),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Payment Successful',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.green),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Razorpay Order ID: pay_${DateTime.now().millisecondsSinceEpoch}',
+                      style: const TextStyle(color: Colors.grey, fontSize: 12),
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(dialogCtx);
+                        onSuccess();
+                      },
+                      style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                      child: const Text('PROCEED TO TRACKING'),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            if (payLoading) {
+              return AlertDialog(
+                backgroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                content: const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(color: Colors.blueAccent),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Processing Payment...',
+                        style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blueAccent),
+                      ),
+                      const SizedBox(height: 8),
+                      Text('Secure connection via Razorpay API', style: TextStyle(color: Colors.grey, fontSize: 11)),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            return Dialog(
+              backgroundColor: const Color(0xFF0F172A), // Premium Dark Slate Razorpay color
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Razorpay Header Banner
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF1E293B),
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(color: Colors.blueAccent, borderRadius: BorderRadius.circular(4)),
+                              child: const Text('R', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                            ),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'Razorpay Checkout',
+                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                            ),
+                          ],
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, color: Colors.grey),
+                          onPressed: () {
+                            Navigator.pop(dialogCtx);
+                            AppSnackbar.showError(context, "Payment cancelled by user");
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Amount block
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+                    child: Column(
+                      children: [
+                        const Text('AMOUNT TO PAY', style: TextStyle(color: Colors.grey, fontSize: 10, letterSpacing: 0.5)),
+                        const SizedBox(height: 4),
+                        Text(
+                          '₹${total.toStringAsFixed(2)}',
+                          style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'FoodyShopy Store Order Payment',
+                          style: TextStyle(color: Colors.white70, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const Divider(color: Colors.white12),
+
+                  // Payment method tabs
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Text('SELECT PAYMENT MODE', style: TextStyle(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 12),
+                        _buildRazorpayOption(
+                          title: 'Google Pay / UPI',
+                          subtitle: 'Instant transfer via mock handle',
+                          icon: Icons.account_balance_wallet_outlined,
+                          isSelected: selectedSubMethod == 'upi',
+                          onTap: () => setState(() => selectedSubMethod = 'upi'),
+                        ),
+                        const SizedBox(height: 8),
+                        _buildRazorpayOption(
+                          title: 'Credit / Debit Card',
+                          subtitle: 'Simulate card authorization',
+                          icon: Icons.credit_card_outlined,
+                          isSelected: selectedSubMethod == 'card',
+                          onTap: () => setState(() => selectedSubMethod = 'card'),
+                        ),
+                        const SizedBox(height: 8),
+                        _buildRazorpayOption(
+                          title: 'Netbanking',
+                          subtitle: 'Mock login gateway',
+                          icon: Icons.business,
+                          isSelected: selectedSubMethod == 'netbank',
+                          onTap: () => setState(() => selectedSubMethod = 'netbank'),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Pay Button
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        setState(() => payLoading = true);
+                        await Future.delayed(const Duration(seconds: 2));
+                        setState(() {
+                          payLoading = false;
+                          paySuccess = true;
+                        });
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blueAccent,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(50),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: Text('PAY NOW  ₹${total.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                  const Center(
+                    child: Text(
+                      '🔒 Secured by Razorpay Sandbox',
+                      style: TextStyle(color: Colors.grey, fontSize: 10),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildRazorpayOption({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF1E293B) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: isSelected ? Colors.blueAccent : Colors.white10),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: isSelected ? Colors.blueAccent : Colors.grey, size: 22),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                  Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                ],
+              ),
+            ),
+            if (isSelected) const Icon(Icons.check_circle, color: Colors.blueAccent, size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Order submission
   Future<void> _placeOrder() async {
-    setState(() => _isPlacingOrder = true);
+    final cartState = ref.read(cartProvider);
+    final locationState = ref.read(locationProvider);
+    final discount = ref.read(offerProvider).discount;
+    final grandTotal = (cartState.total - discount).clamp(0.0, double.infinity);
 
-    // Generate unique Idempotency Key
-    final orderUuid = const Uuid().v4();
+    final addressLine = locationState.activeAddressLine;
+    final paymentMethod = _selectedPaymentMethod?.title ?? 'Cash on Delivery';
 
-    // Simulate API order creation with idempotency key
-    await Future.delayed(const Duration(seconds: 2));
+    if (_selectedPaymentMethod?.id == 'razorpay_select') {
+      // Launch Razorpay simulation gateway
+      _showRazorpayGateway(context, grandTotal, () {
+        _createAndSaveOrder(addressLine, 'Razorpay', grandTotal);
+      });
+    } else {
+      // Direct Cash on Delivery
+      setState(() => _isPlacingOrder = true);
+      await Future.delayed(const Duration(seconds: 1));
+      if (!mounted) return;
+      setState(() => _isPlacingOrder = false);
+      _createAndSaveOrder(addressLine, paymentMethod, grandTotal);
+    }
+  }
 
-    if (!mounted) return;
-    setState(() => _isPlacingOrder = false);
-
-    // Show success dialog / popup
-    AppSnackbar.showSuccess(context, "Order Placed Successfully! ID: $orderUuid");
+  void _createAndSaveOrder(String addressLine, String paymentMethod, double total) {
+    final cartState = ref.read(cartProvider);
     
-    // Clear coupon and cart
+    // Generate mock order UUID details
+    final orderId = 'ord_${(10000 + (DateTime.now().millisecondsSinceEpoch % 90000))}';
+    final otp = (1000 + (DateTime.now().millisecondsSinceEpoch % 9000)).toString();
+
+    final order = OrderModel(
+      id: orderId,
+      restaurantName: cartState.restaurantName,
+      items: cartState.items.map((e) => OrderItem(
+        name: e.item.name,
+        quantity: e.quantity,
+        price: e.item.price,
+      )).toList(),
+      grandTotal: total,
+      date: _getFormattedDate(),
+      status: 'Placed',
+      handoffOtp: otp,
+      addressLine: addressLine,
+      paymentMethod: paymentMethod,
+    );
+
+    // Save order inside dynamic history
+    ref.read(orderProvider.notifier).addOrder(order);
+
+    // Clear cart and offers
     ref.read(offerProvider.notifier).removeOffer();
     ref.read(cartProvider.notifier).clearCart();
 
-    // Navigate to order history or home
-    context.go(AppRoutes.home);
+    // Notify user
+    AppSnackbar.showSuccess(context, "Order Placed Successfully!");
+
+    // Navigate to Order Status Tracking page
+    context.go(AppRoutes.trackingPath(orderId));
   }
 }
 

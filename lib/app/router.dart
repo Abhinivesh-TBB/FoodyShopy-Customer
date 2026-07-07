@@ -11,6 +11,9 @@ import '../features/location/screens/location_permission_screen.dart';
 import '../features/location/screens/select_address_screen.dart';
 import '../features/location/screens/map_picker_screen.dart';
 import '../core/storage/secure_storage_service.dart';
+import 'theme/theme.dart';
+import '../features/home/presentation/views/history_view.dart';
+import '../features/orders/presentation/order_tracking_screen.dart';
 
 class AppRoutes {
   AppRoutes._();
@@ -99,95 +102,106 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const SplashScreen(),
       ),
 
-      // Login
-      GoRoute(
-        name: AppRoutes.loginName,
-        path: AppRoutes.login,
-        builder: (context, state) => const LoginScreen(),
-      ),
-
-      // OTP
-      GoRoute(
-        name: AppRoutes.otpName,
-        path: AppRoutes.otp,
-        builder: (context, state) => const OtpScreen(),
-      ),
-
-      // Home
-      GoRoute(
-        name: AppRoutes.homeName,
-        path: AppRoutes.home,
-        builder: (context, state) => const HomeScreen(),
-      ),
-
-      // Restaurant Menu
-      GoRoute(
-        name: AppRoutes.menuName,
-        path: AppRoutes.menu,
-        builder: (context, state) {
-          final restaurantId = state.pathParameters['restaurantId']!;
-          return RestaurantDetailScreen(restaurantId: restaurantId);
+      ShellRoute(
+        builder: (context, state, child) {
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: AppTheme.backgroundGradient,
+            ),
+            child: child,
+          );
         },
-      ),
+        routes: [
+          // Login
+          GoRoute(
+            name: AppRoutes.loginName,
+            path: AppRoutes.login,
+            builder: (context, state) => const LoginScreen(),
+          ),
 
-      // Cart
-      GoRoute(
-        name: AppRoutes.cartName,
-        path: AppRoutes.cart,
-        builder: (context, state) => const CartScreen(),
-      ),
+          // OTP
+          GoRoute(
+            name: AppRoutes.otpName,
+            path: AppRoutes.otp,
+            builder: (context, state) => const OtpScreen(),
+          ),
 
-      // Location Permission
-      GoRoute(
-        name: AppRoutes.locationPermissionName,
-        path: AppRoutes.locationPermission,
-        builder: (context, state) => const LocationPermissionScreen(),
-      ),
+          // Home
+          GoRoute(
+            name: AppRoutes.homeName,
+            path: AppRoutes.home,
+            builder: (context, state) => const HomeScreen(),
+          ),
 
-      // Select Address
-      GoRoute(
-        name: AppRoutes.selectAddressName,
-        path: AppRoutes.selectAddress,
-        builder: (context, state) => const SelectAddressScreen(),
-      ),
+          // Restaurant Menu
+          GoRoute(
+            name: AppRoutes.menuName,
+            path: AppRoutes.menu,
+            builder: (context, state) {
+              final restaurantId = state.pathParameters['restaurantId']!;
+              return RestaurantDetailScreen(restaurantId: restaurantId);
+            },
+          ),
 
-      // Map Picker
-      GoRoute(
-        name: AppRoutes.mapPickerName,
-        path: AppRoutes.mapPicker,
-        builder: (context, state) => const MapPickerScreen(),
-      ),
+          // Cart
+          GoRoute(
+            name: AppRoutes.cartName,
+            path: AppRoutes.cart,
+            builder: (context, state) => const CartScreen(),
+          ),
 
-      // Checkout
-      GoRoute(
-        name: AppRoutes.checkoutName,
-        path: AppRoutes.checkout,
-        builder: (context, state) => const _Placeholder('Checkout'),
-      ),
+          // Location Permission
+          GoRoute(
+            name: AppRoutes.locationPermissionName,
+            path: AppRoutes.locationPermission,
+            builder: (context, state) => const LocationPermissionScreen(),
+          ),
 
-      // Tracking
-      GoRoute(
-        name: AppRoutes.trackingName,
-        path: AppRoutes.tracking,
-        builder: (context, state) {
-          final orderId = state.pathParameters['orderId']!;
+          // Select Address
+          GoRoute(
+            name: AppRoutes.selectAddressName,
+            path: AppRoutes.selectAddress,
+            builder: (context, state) => const SelectAddressScreen(),
+          ),
 
-          return _Placeholder('Order Tracking\nOrder ID: $orderId');
-        },
-      ),
+          // Map Picker
+          GoRoute(
+            name: AppRoutes.mapPickerName,
+            path: AppRoutes.mapPicker,
+            builder: (context, state) => const MapPickerScreen(),
+          ),
 
-      // Order History
-      GoRoute(
-        name: AppRoutes.historyName,
-        path: AppRoutes.history,
-        builder: (context, state) => const _Placeholder('Order History'),
-      ),
+          // Checkout
+          GoRoute(
+            name: AppRoutes.checkoutName,
+            path: AppRoutes.checkout,
+            builder: (context, state) => const _Placeholder('Checkout'),
+          ),
 
-      // Profile
-      GoRoute(
-        name: AppRoutes.profileName,
-        path: AppRoutes.profile,
-        builder: (context, state) => const _Placeholder('Profile'),
+          // Tracking
+          GoRoute(
+            name: AppRoutes.trackingName,
+            path: AppRoutes.tracking,
+            builder: (context, state) {
+              final orderId = state.pathParameters['orderId']!;
+              return OrderTrackingScreen(orderId: orderId);
+            },
+          ),
+
+          // Order History
+          GoRoute(
+            name: AppRoutes.historyName,
+            path: AppRoutes.history,
+            builder: (context, state) => const HistoryView(),
+          ),
+
+          // Profile
+          GoRoute(
+            name: AppRoutes.profileName,
+            path: AppRoutes.profile,
+            builder: (context, state) => const _Placeholder('Profile'),
+          ),
+        ],
       ),
     ],
 

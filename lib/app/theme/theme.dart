@@ -29,6 +29,20 @@ class AppColors {
 class AppTheme {
   AppTheme._();
 
+  static const Gradient backgroundGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      Color(0xFFA7C4A0),
+      Color(0xFFC8DDBF),
+      Color(0xFFE8F1E2),
+      Color(0xFFF4EFE6),
+      Color(0xFFE8F1E2),
+      Color(0xFFC8DDBF),
+      Color(0xFFA7C4A0),
+    ],
+  );
+
   static ThemeData get light {
     final base = ThemeData(
       useMaterial3: true,
@@ -37,13 +51,13 @@ class AppTheme {
         primary: AppColors.primary,
         brightness: Brightness.light,
       ),
-      scaffoldBackgroundColor: AppColors.background,
+      scaffoldBackgroundColor: Colors.transparent,
     );
 
     return base.copyWith(
       textTheme: GoogleFonts.poppinsTextTheme(base.textTheme),
       appBarTheme: const AppBarTheme(
-        backgroundColor: AppColors.background,
+        backgroundColor: Colors.transparent,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
         centerTitle: true,
@@ -69,3 +83,4 @@ class AppTheme {
     );
   }
 }
+

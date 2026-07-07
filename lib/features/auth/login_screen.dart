@@ -40,7 +40,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (!mounted) return;
 
     if (success) {
-      context.go(AppRoutes.otp);
+      context.push(AppRoutes.otp);
     } else {
       AppSnackbar.showError(context, "Failed to send OTP");
     }
