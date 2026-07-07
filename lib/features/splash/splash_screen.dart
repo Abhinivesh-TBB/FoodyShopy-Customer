@@ -1,10 +1,11 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
 
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../app/constants.dart';
-import '../../core/services/app_initializer.dart';
 import '../../app/router.dart';
+import '../../core/services/app_initializer.dart';
 import '../../shared/widgets/app_logo.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -50,7 +51,9 @@ class _SplashScreenState extends State<SplashScreen> {
       body: AnimatedContainer(
         duration: AppConstants.splashFadeDuration,
         curve: Curves.easeInOut,
-        color: _showWhite ? Colors.white : Colors.orange,
+        color: _showWhite
+            ? Colors.white
+            : const Color.fromRGBO(253, 81, 61, 1.0),
         width: double.infinity,
         height: double.infinity,
         child: AnimatedOpacity(
@@ -60,7 +63,7 @@ class _SplashScreenState extends State<SplashScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const AppLogo(logoColor: Colors.black),
+                const AppLogo(),
                 const SizedBox(height: 16),
                 // const Text(
                 //   'FoodyShopy',

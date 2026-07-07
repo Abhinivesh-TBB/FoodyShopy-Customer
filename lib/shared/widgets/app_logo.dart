@@ -21,7 +21,7 @@ class AppLogo extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Image.asset(
-          'assets/images/quiz_logo.png',
+          'assets/images/foodyshopy_logo.png',
           width: size,
           height: size,
           color: logoColor,
