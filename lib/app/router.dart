@@ -15,6 +15,8 @@ import 'theme/theme.dart';
 import '../features/home/presentation/views/history_view.dart';
 import '../features/orders/presentation/order_tracking_screen.dart';
 import '../features/auth/providers/auth_provider.dart';
+import '../features/checkout/presentation/checkout_screen.dart';
+import '../features/home/presentation/views/account_view.dart';
 
 class AppRoutes {
   AppRoutes._();
@@ -192,7 +194,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             name: AppRoutes.checkoutName,
             path: AppRoutes.checkout,
-            builder: (context, state) => const _Placeholder('Checkout'),
+            builder: (context, state) => const CheckoutScreen(),
           ),
 
           // Tracking
@@ -216,7 +218,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             name: AppRoutes.profileName,
             path: AppRoutes.profile,
-            builder: (context, state) => const _Placeholder('Profile'),
+            builder: (context, state) => const Scaffold(body: AccountView()),
           ),
         ],
       ),

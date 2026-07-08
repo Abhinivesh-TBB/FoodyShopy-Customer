@@ -1,6 +1,7 @@
 import '../network/network_service.dart';
 import '../storage/secure_storage_service.dart';
 import '../storage/local_cache.dart';
+import 'push_notification_service.dart';
 
 class AppInitializer {
   AppInitializer._();
@@ -11,6 +12,9 @@ class AppInitializer {
 
     // Check internet
     await NetworkService.isConnected();
+
+    // Initialize Push Notifications (Firebase Messaging)
+    await PushNotificationService().initialize();
 
     // Read saved token
     final token = await SecureStorageService.getAccessToken();

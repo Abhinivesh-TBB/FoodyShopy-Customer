@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/storage/local_cache.dart';
+import '../../../core/api/api_client.dart';
+import '../../../core/services/logger_service.dart';
 
 class OrderItem {
   final String name;
@@ -23,9 +25,9 @@ class OrderItem {
 
   factory OrderItem.fromJson(Map<String, dynamic> json) {
     return OrderItem(
-      name: json['name'],
-      quantity: json['quantity'],
-      price: (json['price'] as num).toDouble(),
+      name: json['name'] ?? json['menu_item_name'] ?? 'Item',
+      quantity: json['quantity'] ?? 1,
+      price: (json['price'] ?? json['unit_price'] as num).toDouble(),
     );
   }
 }
@@ -94,13 +96,13 @@ class OrderModel {
   factory OrderModel.fromJson(Map<String, dynamic> json) {
     return OrderModel(
       id: json['id'],
-      restaurantName: json['restaurantName'],
+      restaurantName: json['restaurantName'] ?? json['restaurant_name'] ?? 'Restaurant',
       items: (json['items'] as List).map((e) => OrderItem.fromJson(e)).toList(),
-      grandTotal: (json['grandTotal'] as num).toDouble(),
-      date: json['date'],
+      grandTotal: (json['grandTotal'] ?? json['total_amount'] as num).toDouble(),
+      date: json['date'] ?? json['created_at'] ?? 'Just now',
       status: json['status'],
       handoffOtp: json['handoffOtp'] ?? '0000',
-      addressLine: json['addressLine'] ?? 'Location',
+      addressLine: json['addressLine'] ?? json['delivery_address'] ?? 'Location',
       paymentMethod: json['paymentMethod'] ?? 'Razorpay',
     );
   }
@@ -108,12 +110,53 @@ class OrderModel {
 
 class OrderNotifier extends StateNotifier<List<OrderModel>> {
   static const String _keyOrders = 'key_order_history';
+  final bool useMock = true;
 
   OrderNotifier() : super(const []) {
-    _loadOrders();
+    fetchOrders();
   }
 
-  void _loadOrders() {
+  Future<void> fetchOrders() async {
+    if (!useMock) {
+      try {
+        final response = await ApiClient.dio.get('/customer/orders');
+        if (response.statusCode == 200) {
+          final List<dynamic> data = response.data;
+          final list = data.map((json) {
+            final List<dynamic> rawItems = json['items'] ?? [];
+            final itemsList = rawItems.map((e) => OrderItem(
+              name: e['menu_item_name'] ?? e['name'] ?? 'Item',
+              quantity: e['quantity'] ?? 1,
+              price: (e['unit_price'] ?? e['price'] as num).toDouble(),
+            )).toList();
+
+            return OrderModel(
+              id: json['id'] ?? 'ord_unknown',
+              restaurantName: json['restaurant']?['name'] ?? json['restaurant_name'] ?? 'Restaurant',
+              items: itemsList,
+              grandTotal: (json['total_amount'] as num).toDouble(),
+              date: json['created_at'] ?? 'Just now',
+              status: _capitalize(json['status'] ?? 'Placed'),
+              handoffOtp: 'xxxx',
+              addressLine: json['delivery_address'] ?? 'Address',
+              paymentMethod: json['payment']?['method'] ?? 'Razorpay',
+            );
+          }).toList();
+          
+          state = list;
+          _saveToCache(list);
+          return;
+        }
+      } catch (e) {
+        LoggerService.logger.e("Failed to fetch order history: $e. Falling back to local cache.");
+      }
+    }
+
+    // Cache/Mock Fallback
+    _loadOrdersFromCache();
+  }
+
+  void _loadOrdersFromCache() {
     try {
       final jsonString = LocalCache.getString(_keyOrders);
       if (jsonString != null && jsonString.isNotEmpty) {
@@ -183,6 +226,18 @@ class OrderNotifier extends StateNotifier<List<OrderModel>> {
     }).toList();
     state = list;
     _saveToCache(list);
+  }
+
+  String _capitalize(String status) {
+    if (status.isEmpty) return status;
+    if (status == 'pending') return 'Placed';
+    if (status == 'accepted') return 'Placed';
+    if (status == 'preparing') return 'Preparing';
+    if (status == 'ready') return 'Preparing';
+    if (status == 'picked_up') return 'Out for Delivery';
+    if (status == 'delivered') return 'Delivered';
+    if (status == 'cancelled') return 'Cancelled';
+    return status[0].toUpperCase() + status.substring(1);
   }
 }
 

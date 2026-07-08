@@ -8,6 +8,7 @@ class MenuItem {
   final bool isBestseller;
   final String category;
   final double rating;
+  final bool inStock;
 
   const MenuItem({
     required this.id,
@@ -19,6 +20,7 @@ class MenuItem {
     this.isBestseller = false,
     required this.category,
     this.rating = 4.0,
+    this.inStock = true,
   });
 
   factory MenuItem.fromJson(Map<String, dynamic> json) {
@@ -32,6 +34,7 @@ class MenuItem {
       isBestseller: json['isBestseller'] as bool? ?? false,
       category: json['category'] as String? ?? 'General',
       rating: (json['rating'] as num?)?.toDouble() ?? 4.0,
+      inStock: json['inStock'] as bool? ?? json['in_stock'] as bool? ?? true,
     );
   }
 
@@ -46,6 +49,7 @@ class MenuItem {
       'isBestseller': isBestseller,
       'category': category,
       'rating': rating,
+      'inStock': inStock,
     };
   }
 }

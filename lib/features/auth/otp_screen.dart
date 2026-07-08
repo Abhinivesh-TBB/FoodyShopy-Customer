@@ -83,7 +83,11 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     if (!mounted) return;
 
     if (success) {
-      context.go(AppRoutes.home);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          context.go(AppRoutes.home);
+        }
+      });
     } else {
       AppSnackbar.showError(context, "Invalid OTP");
     }

@@ -2,6 +2,7 @@ import 'menu_item.dart';
 
 class Restaurant {
   final String id;
+  final String zoneId;
   final String name;
   final String imageUrl;
   final double rating;
@@ -17,6 +18,7 @@ class Restaurant {
 
   const Restaurant({
     required this.id,
+    this.zoneId = 'zone_1',
     required this.name,
     required this.imageUrl,
     required this.rating,
@@ -34,6 +36,7 @@ class Restaurant {
   factory Restaurant.fromJson(Map<String, dynamic> json) {
     return Restaurant(
       id: json['id'] as String,
+      zoneId: json['zoneId'] as String? ?? json['zone_id'] as String? ?? 'zone_1',
       name: json['name'] as String,
       imageUrl: json['imageUrl'] as String? ?? '',
       rating: (json['rating'] as num?)?.toDouble() ?? 4.0,
@@ -55,6 +58,7 @@ class Restaurant {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      'zoneId': zoneId,
       'name': name,
       'imageUrl': imageUrl,
       'rating': rating,

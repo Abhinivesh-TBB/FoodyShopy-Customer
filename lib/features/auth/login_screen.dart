@@ -40,7 +40,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (!mounted) return;
 
     if (success) {
-      context.push(AppRoutes.otp);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          context.push(AppRoutes.otp);
+        }
+      });
     } else {
       AppSnackbar.showError(context, "Failed to send OTP");
     }

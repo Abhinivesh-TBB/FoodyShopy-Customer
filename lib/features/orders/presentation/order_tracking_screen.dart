@@ -1,12 +1,11 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../../app/router.dart';
 import '../../../app/theme/app_colors.dart';
-import '../../../app/theme/app_text_styles.dart';
-import '../providers/order_provider.dart';
+import '../providers/tracking_provider.dart';
 import '../../../core/utils/app_snackbar.dart';
 
 class OrderTrackingScreen extends ConsumerStatefulWidget {
@@ -18,139 +17,66 @@ class OrderTrackingScreen extends ConsumerStatefulWidget {
 }
 
 class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
-  Timer? _statusTimer;
-  int _elapsedSeconds = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _startMockStatusTimeline();
-  }
-
-  @override
-  void dispose() {
-    _statusTimer?.cancel();
-    super.dispose();
-  }
-
-  void _startMockStatusTimeline() {
-    _statusTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) return;
-      
-      setState(() {
-        _elapsedSeconds++;
-      });
-
-      // Update state at boundaries
-      final orders = ref.read(orderProvider);
-      final currentOrder = orders.firstWhere((o) => o.id == widget.orderId, orElse: () => orders.first);
-
-      if (currentOrder.status == 'Delivered') {
-        _statusTimer?.cancel();
-        return;
-      }
-
-      if (_elapsedSeconds == 6) {
-        // Transition to Preparing
-        ref.read(orderProvider.notifier).updateOrderStatus(widget.orderId, 'Preparing');
-        _triggerNotification('🍳 Chef is preparing your delicious food at ${currentOrder.restaurantName}!');
-      } else if (_elapsedSeconds == 14) {
-        // Transition to Out for Delivery
-        ref.read(orderProvider.notifier).updateOrderStatus(widget.orderId, 'Out for Delivery');
-        _triggerNotification('🚴 Delivery partner is on the way with your hot meal! Share handoff OTP: ${currentOrder.handoffOtp}');
-      } else if (_elapsedSeconds == 22) {
-        // Transition to Delivered
-        ref.read(orderProvider.notifier).updateOrderStatus(widget.orderId, 'Delivered');
-        _triggerNotification('🎉 Order delivered successfully! Enjoy your meal!');
-        _statusTimer?.cancel();
-      }
-    });
-  }
-
-  void _triggerNotification(String message) {
-    if (!mounted) return;
-    
-    // Simulate push notification in-app popup using local alert
-    showDialog(
-      context: context,
-      barrierColor: Colors.black26,
-      builder: (ctx) {
-        Future.delayed(const Duration(seconds: 3), () {
-          if (ctx.mounted) {
-            Navigator.pop(ctx);
-          }
-        });
-        return Align(
-          alignment: Alignment.topCenter,
-          child: Padding(
-            padding: const EdgeInsets.only(top: 60, left: 16, right: 16),
-            child: Material(
-              color: const Color(0xFF1E293B),
-              borderRadius: BorderRadius.circular(12),
-              elevation: 8,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                child: Row(
-                  children: [
-                    const Icon(Icons.notifications_active, color: AppColors.primary, size: 24),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'ORDER UPDATE',
-                            style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 10, letterSpacing: 0.5),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            message,
-                            style: const TextStyle(color: Colors.white, fontSize: 12),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
+  GoogleMapController? _mapController;
+  final Set<Marker> _markers = {};
 
   @override
   Widget build(BuildContext context) {
-    final ordersList = ref.watch(orderProvider);
-    final order = ordersList.firstWhere(
-      (o) => o.id == widget.orderId,
-      orElse: () => OrderModel(
-        id: widget.orderId,
-        restaurantName: 'FoodyShopy Restaurant',
-        items: const [],
-        grandTotal: 0.0,
-        date: 'Just now',
-        status: 'Placed',
-        handoffOtp: '4829',
-        addressLine: 'HAL 2nd Stage, Indiranagar, Bengaluru',
-        paymentMethod: 'UPI',
-      ),
-    );
+    final trackingState = ref.watch(trackingProvider(widget.orderId));
+    final trackingNotifier = ref.read(trackingProvider(widget.orderId).notifier);
 
+    if (trackingState.isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      );
+    }
+
+    final order = trackingState.order;
+    if (order == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Order Status')),
+        body: const Center(child: Text('Order not found')),
+      );
+    }
+
+    // Determine ETA and Status Description
     int etaMin = 25;
     String statusDesc = 'Waiting for restaurant confirmation';
     if (order.status == 'Preparing') {
       etaMin = 18;
-      statusDesc = 'Restaurant is preparing your food';
+      statusDesc = 'Restaurant is preparing your delicious meal';
     } else if (order.status == 'Out for Delivery') {
       etaMin = 8;
-      statusDesc = 'Delivery partner has picked up your order';
+      statusDesc = 'Rider is on the way to your door';
     } else if (order.status == 'Delivered') {
       etaMin = 0;
-      statusDesc = 'Order delivered';
+      statusDesc = 'Order delivered successfully';
+    } else if (order.status == 'Cancelled') {
+      etaMin = 0;
+      statusDesc = 'Order cancelled';
     }
+
+    // Set Map Markers if rider coordinates are available
+    if (trackingState.riderLatitude != null && trackingState.riderLongitude != null) {
+      final pos = LatLng(trackingState.riderLatitude!, trackingState.riderLongitude!);
+      
+      _markers.add(
+        Marker(
+          markerId: const MarkerId('rider'),
+          position: pos,
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+          infoWindow: const InfoWindow(title: 'Delivery Agent Location'),
+        ),
+      );
+
+      // Animate map camera to center rider
+      if (_mapController != null) {
+        _mapController!.animateCamera(CameraUpdate.newLatLng(pos));
+      }
+    }
+
+    // Show cancel action only before picked up / out for delivery
+    final isCancellable = order.status != 'Out for Delivery' && order.status != 'Delivered' && order.status != 'Cancelled';
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -162,6 +88,36 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
           icon: const Icon(Icons.arrow_back_ios_new, size: 20),
           onPressed: () => context.go(AppRoutes.home),
         ),
+        actions: [
+          if (isCancellable)
+            TextButton(
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Cancel Order'),
+                    content: const Text('Are you sure you want to cancel this order?'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('NO')),
+                      TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('YES, CANCEL')),
+                    ],
+                  ),
+                );
+
+                if (confirm == true) {
+                  final success = await trackingNotifier.cancelOrder();
+                  if (context.mounted) {
+                    if (success) {
+                      AppSnackbar.showSuccess(context, "Order cancelled successfully!");
+                    } else {
+                      AppSnackbar.showError(context, "Failed to cancel order");
+                    }
+                  }
+                }
+              },
+              child: const Text('CANCEL', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+            ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -183,7 +139,11 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                     const Text('ESTIMATED DELIVERY TIME', style: TextStyle(color: Colors.grey, fontSize: 10, letterSpacing: 0.5)),
                     const SizedBox(height: 6),
                     Text(
-                      order.status == 'Delivered' ? 'DELIVERED' : '$etaMin MINS',
+                      order.status == 'Delivered'
+                          ? 'DELIVERED'
+                          : order.status == 'Cancelled'
+                              ? 'CANCELLED'
+                              : '$etaMin MINS',
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 32, color: AppColors.primary),
                     ),
                     const SizedBox(height: 6),
@@ -221,54 +181,83 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
 
             const SizedBox(height: 12),
 
-            // Handoff Verification OTP Card
-            Card(
-              elevation: 0,
-              color: AppColors.primary.withOpacity(0.06),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: const BorderSide(color: AppColors.primary, width: 1.5),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    const Icon(Icons.vpn_key_outlined, color: AppColors.primary, size: 28),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Delivery Handoff OTP',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.primary),
-                          ),
-                          const SizedBox(height: 2),
-                          const Text(
-                            'Show this to the delivery partner at your door.',
-                            style: TextStyle(fontSize: 11, color: Colors.black87),
-                          ),
-                        ],
+            // Live Rider tracking on Map (only shown when location coordinate is available)
+            if (trackingState.riderLatitude != null && trackingState.riderLongitude != null) ...[
+              Card(
+                elevation: 0,
+                color: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: const BorderSide(color: AppColors.divider),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: SizedBox(
+                    height: 200,
+                    child: GoogleMap(
+                      initialCameraPosition: CameraPosition(
+                        target: LatLng(trackingState.riderLatitude!, trackingState.riderLongitude!),
+                        zoom: 15.0,
                       ),
+                      markers: _markers,
+                      onMapCreated: (controller) => _mapController = controller,
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppColors.primary.withOpacity(0.3)),
-                      ),
-                      child: Text(
-                        order.handoffOtp,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.primary, letterSpacing: 0.5),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
-            ),
+              const SizedBox(height: 12),
+            ],
 
-            const SizedBox(height: 12),
+            // Prominent Delivery handoff OTP card (visible ONLY when out for delivery / picked up)
+            if (trackingState.deliveryOtp != null &&
+                (order.status == 'Out for Delivery' || order.status == 'Delivered')) ...[
+              Card(
+                elevation: 0,
+                color: AppColors.primary.withOpacity(0.06),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: const BorderSide(color: AppColors.primary, width: 1.5),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.vpn_key_outlined, color: AppColors.primary, size: 28),
+                      const SizedBox(width: 14),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Delivery Handoff OTP',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.primary),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Show this code to the delivery partner at your door.',
+                              style: TextStyle(fontSize: 11, color: Colors.black87),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+                        ),
+                        child: Text(
+                          trackingState.deliveryOtp!,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.primary, letterSpacing: 0.5),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
 
             // Timeline Card
             Card(
@@ -295,7 +284,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                     _buildTimelineStep(
                       title: 'Preparing Food',
                       subtitle: 'Chef is cooking your meal',
-                      isCompleted: order.status != 'Placed',
+                      isCompleted: order.status != 'Placed' && order.status != 'Cancelled',
                       isActive: order.status == 'Preparing',
                       isLast: false,
                     ),
@@ -308,7 +297,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                     ),
                     _buildTimelineStep(
                       title: 'Delivered',
-                      subtitle: 'Enjoy your food!',
+                      subtitle: order.status == 'Cancelled' ? 'Cancelled' : 'Enjoy your food!',
                       isCompleted: order.status == 'Delivered',
                       isActive: order.status == 'Delivered',
                       isLast: true,

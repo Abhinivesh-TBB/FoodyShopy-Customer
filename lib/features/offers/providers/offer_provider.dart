@@ -37,12 +37,18 @@ class OfferState {
 class OfferNotifier extends StateNotifier<OfferState> {
   OfferNotifier() : super(const OfferState());
 
-  Future<bool> validateOffer(String code, double cartTotal) async {
+  Future<bool> validateOffer({
+    required String restaurantId,
+    required List<Map<String, dynamic>> items,
+    required String code,
+    required double cartTotal,
+  }) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
 
     // Toggle this to test live API
     final bool useMock = true;
 
+    // ignore: dead_code
     if (useMock) {
       await Future.delayed(const Duration(seconds: 1));
       final formattedCode = code.trim().toUpperCase();
@@ -71,20 +77,20 @@ class OfferNotifier extends StateNotifier<OfferState> {
       }
     }
 
-    // ignore: dead_code
     try {
       final response = await ApiClient.dio.post(
         '/customer/offers/validate',
         data: {
-          'code': code,
-          'total': cartTotal,
+          'restaurant_id': restaurantId,
+          'items': items,
+          'code': code.trim().isNotEmpty ? code.trim() : null,
         },
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = response.data;
-        final discountVal = (data['discount'] as num).toDouble();
-        final finalTotal = (data['total'] as num).toDouble();
+        final discountVal = (data['discount_amount'] ?? data['discount'] as num?)?.toDouble() ?? 0.0;
+        final finalTotal = (data['total_amount'] ?? data['total'] as num?)?.toDouble() ?? cartTotal;
 
         state = OfferState(
           discount: discountVal,

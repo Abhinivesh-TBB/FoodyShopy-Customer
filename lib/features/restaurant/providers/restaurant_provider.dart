@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/models/restaurant.dart';
 import '../../../shared/models/menu_item.dart';
+import '../../../core/api/api_client.dart';
+import '../../../core/services/logger_service.dart';
 
 class RestaurantState {
   final List<Restaurant> allRestaurants;
@@ -47,24 +49,55 @@ class RestaurantState {
 }
 
 class RestaurantNotifier extends StateNotifier<RestaurantState> {
+  final bool useMock = true;
+
   RestaurantNotifier() : super(const RestaurantState()) {
     fetchRestaurants();
   }
 
-  Future<void> fetchRestaurants() async {
+  Future<void> fetchRestaurants({String? zoneId}) async {
     state = state.copyWith(isLoading: true);
 
-    // Simulate API delay
-    await Future.delayed(const Duration(milliseconds: 800));
+    if (useMock) {
+      await Future.delayed(const Duration(milliseconds: 800));
+      final mockList = _getMockRestaurants();
+      state = state.copyWith(
+        allRestaurants: mockList,
+        filteredRestaurants: mockList,
+        isLoading: false,
+      );
+      _applyFiltersAndSearch();
+      return;
+    }
 
-    final mockList = _getMockRestaurants();
+    try {
+      final response = await ApiClient.dio.get(
+        '/customer/restaurants',
+        queryParameters: {'zone_id': zoneId ?? 'zone_1'},
+      );
 
-    state = state.copyWith(
-      allRestaurants: mockList,
-      filteredRestaurants: mockList,
-      isLoading: false,
-    );
-    _applyFiltersAndSearch();
+      if (response.statusCode == 200) {
+        final List<dynamic> data = response.data;
+        final list = data.map((e) => Restaurant.fromJson(e)).toList();
+        state = state.copyWith(
+          allRestaurants: list,
+          filteredRestaurants: list,
+          isLoading: false,
+        );
+        _applyFiltersAndSearch();
+      } else {
+        throw Exception("Server returned status ${response.statusCode}");
+      }
+    } catch (e) {
+      LoggerService.logger.e("Failed to fetch restaurants: $e. Falling back to mock.");
+      final mockList = _getMockRestaurants();
+      state = state.copyWith(
+        allRestaurants: mockList,
+        filteredRestaurants: mockList,
+        isLoading: false,
+      );
+      _applyFiltersAndSearch();
+    }
   }
 
   void setSearchQuery(String query) {
@@ -87,12 +120,67 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
     _applyFiltersAndSearch();
   }
 
-  void selectRestaurant(String id) {
-    final restaurant = state.allRestaurants.firstWhere(
+  Future<void> selectRestaurant(String id) async {
+    // Locate in state first as immediate feedback
+    Restaurant? restaurant = state.allRestaurants.firstWhere(
       (e) => e.id == id,
       orElse: () => _getMockRestaurants().firstWhere((e) => e.id == id),
     );
     state = state.copyWith(selectedRestaurant: restaurant);
+
+    if (useMock) return;
+
+    try {
+      final response = await ApiClient.dio.get('/customer/restaurants/$id/menu');
+      if (response.statusCode == 200) {
+        final List<dynamic> menuData = response.data;
+        final rawItems = menuData.map((e) => MenuItem.fromJson(e)).toList();
+        // Hide out of stock items per spec
+        final items = rawItems.where((e) => e.inStock).toList();
+
+        // Update selected restaurant with real items
+        final updatedRestaurant = Restaurant(
+          id: restaurant.id,
+          zoneId: restaurant.zoneId,
+          name: restaurant.name,
+          imageUrl: restaurant.imageUrl,
+          rating: restaurant.rating,
+          deliveryTimeMin: restaurant.deliveryTimeMin,
+          distance: restaurant.distance,
+          costForTwo: restaurant.costForTwo,
+          cuisines: restaurant.cuisines,
+          offers: restaurant.offers,
+          description: restaurant.description,
+          latitude: restaurant.latitude,
+          longitude: restaurant.longitude,
+          menu: items,
+        );
+
+        state = state.copyWith(selectedRestaurant: updatedRestaurant);
+      }
+    } catch (e) {
+      LoggerService.logger.e("Failed to fetch menu: $e. Falling back to mock menu.");
+      try {
+        final mockRestaurant = _getMockRestaurants().firstWhere((e) => e.id == id);
+        final updatedRestaurant = Restaurant(
+          id: restaurant.id,
+          zoneId: restaurant.zoneId,
+          name: restaurant.name,
+          imageUrl: restaurant.imageUrl,
+          rating: restaurant.rating,
+          deliveryTimeMin: restaurant.deliveryTimeMin,
+          distance: restaurant.distance,
+          costForTwo: restaurant.costForTwo,
+          cuisines: restaurant.cuisines,
+          offers: restaurant.offers,
+          description: restaurant.description,
+          latitude: restaurant.latitude,
+          longitude: restaurant.longitude,
+          menu: mockRestaurant.menu,
+        );
+        state = state.copyWith(selectedRestaurant: updatedRestaurant);
+      } catch (_) {}
+    }
   }
 
   void _applyFiltersAndSearch() {
