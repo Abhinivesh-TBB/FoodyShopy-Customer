@@ -46,7 +46,7 @@ class OfferNotifier extends StateNotifier<OfferState> {
     state = state.copyWith(isLoading: true, errorMessage: null);
 
     // Toggle this to test live API
-    final bool useMock = true;
+    final bool useMock = false;
 
     // ignore: dead_code
     if (useMock) {

@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import '../api/api_client.dart';
 import '../services/logger_service.dart';
+import '../../firebase_options.dart';
 
 class PushNotificationService {
   static final PushNotificationService _instance = PushNotificationService._internal();
@@ -15,7 +16,9 @@ class PushNotificationService {
 
     try {
       // Attempt Firebase initialization
-      await Firebase.initializeApp();
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
       
       final messaging = FirebaseMessaging.instance;
 

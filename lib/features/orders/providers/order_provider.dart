@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/storage/local_cache.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/services/logger_service.dart';
+import '../../../shared/mocks/mock_data.dart';
 
 class OrderItem {
   final String name;
@@ -110,7 +111,7 @@ class OrderModel {
 
 class OrderNotifier extends StateNotifier<List<OrderModel>> {
   static const String _keyOrders = 'key_order_history';
-  final bool useMock = true;
+  final bool useMock = false;
 
   OrderNotifier() : super(const []) {
     fetchOrders();
@@ -165,35 +166,7 @@ class OrderNotifier extends StateNotifier<List<OrderModel>> {
         state = list;
       } else {
         // Mock default orders
-        final defaults = [
-          OrderModel(
-            id: 'ord_98124',
-            restaurantName: 'Meghana Foods',
-            items: [
-              const OrderItem(name: 'Meghana Special Chicken Biryani', quantity: 1, price: 320),
-              const OrderItem(name: 'Gobi 65 Dry', quantity: 1, price: 180),
-            ],
-            grandTotal: 531.0,
-            date: '05 July 2026, 08:30 PM',
-            status: 'Delivered',
-            handoffOtp: '4932',
-            addressLine: 'HAL 2nd Stage, Indiranagar, Bengaluru',
-            paymentMethod: 'UPI',
-          ),
-          OrderModel(
-            id: 'ord_12763',
-            restaurantName: "Leon's Burgers & Wings",
-            items: [
-              const OrderItem(name: 'Jumbo Crispy Chicken Burger', quantity: 1, price: 199),
-            ],
-            grandTotal: 214.0,
-            date: '28 June 2026, 01:15 PM',
-            status: 'Delivered',
-            handoffOtp: '1176',
-            addressLine: 'HAL 2nd Stage, Indiranagar, Bengaluru',
-            paymentMethod: 'Credit/Debit Card',
-          ),
-        ];
+        final defaults = mockDefaultOrders;
         state = defaults;
         _saveToCache(defaults);
       }

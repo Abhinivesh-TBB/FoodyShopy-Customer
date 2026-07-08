@@ -12,6 +12,7 @@ class AppConstants {
   static const String apiBaseUrl = 'https://api.yourapp.com';
   static const String wsBaseUrl = 'wss://ws.yourapp.com';
   static const String customerApiPrefix = '/customer';
+  static const bool useMockApi = true;
 
   // =========================
   // Network Timeouts

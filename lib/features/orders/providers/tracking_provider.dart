@@ -4,6 +4,7 @@ import '../../../core/api/api_client.dart';
 import '../../../core/services/websocket_service.dart';
 import '../../../core/services/logger_service.dart';
 import '../providers/order_provider.dart';
+import '../../../app/constants.dart';
 
 class TrackingState {
   final OrderModel? order;
@@ -46,7 +47,7 @@ class TrackingNotifier extends StateNotifier<TrackingState> {
   final WebSocketService _wsService = WebSocketService();
   final Ref _ref;
   String? _subscribedRiderId;
-  final bool useMock = true;
+  final bool useMock = false;
   Timer? _simulationTimer;
   int _simulationStep = 0;
 
@@ -57,7 +58,7 @@ class TrackingNotifier extends StateNotifier<TrackingState> {
   Future<void> _init() async {
     await fetchOrderSnapshot();
     
-    if (useMock) {
+    if (AppConstants.useMockApi) {
       _simulateStatusTimeline();
       return;
     }

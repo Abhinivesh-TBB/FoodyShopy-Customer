@@ -37,7 +37,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   // Flag to fallback to Razorpay simulation if real SDK/backend fails or keys are missing
   bool _usePaymentSimulation = false;
-  final bool useMock = true;
+  final bool useMock = false;
 
   @override
   void initState() {

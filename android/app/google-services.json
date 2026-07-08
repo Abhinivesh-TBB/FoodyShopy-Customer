@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "214805452047",
+    "project_id": "customer-app-abhi",
+    "storage_bucket": "customer-app-abhi.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:214805452047:android:52e418e39ae6ca44a35a7a",
+        "android_client_info": {
+          "package_name": "com.example.customer_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDNj1t8Zmo6n5q9I-wlxaJ_Tv0WEwCOdj0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

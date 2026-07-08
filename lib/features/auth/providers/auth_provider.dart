@@ -8,7 +8,7 @@ import '../../../core/storage/secure_storage_service.dart';
 /// Service Provider
 final authServiceProvider = Provider<AuthService>((ref) {
   // Set to false to use the real API gateway backend
-  final bool useMock = true;
+  final bool useMock = false;
   return useMock ? MockAuthService() : AuthServiceImpl();
 });
 

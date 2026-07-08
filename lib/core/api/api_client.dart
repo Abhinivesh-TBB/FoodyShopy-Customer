@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import '../../app/constants.dart';
 import 'auth_interceptor.dart';
+import 'mock_api_interceptor.dart';
 
 class ApiClient {
   ApiClient._();
@@ -14,6 +15,7 @@ class ApiClient {
       headers: {'Content-Type': 'application/json'},
     ),
   )..interceptors.addAll([
+      if (AppConstants.useMockApi) MockApiInterceptor(),
       AuthInterceptor(),
       LogInterceptor(
         requestHeader: true,
