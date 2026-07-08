@@ -269,6 +269,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                   backgroundColor: AppColors.primary,
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                   padding: const EdgeInsets.symmetric(horizontal: 20),
+                                  minimumSize: const Size(0, 48),
                                 ),
                                 child: offerState.isLoading
                                     ? const SizedBox(
