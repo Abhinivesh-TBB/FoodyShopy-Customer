@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../app/constants.dart';
 import '../../app/router.dart';
 import '../../core/services/app_initializer.dart';
 import '../../shared/widgets/app_logo.dart';
@@ -25,13 +24,13 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
 
-    // 1. Setup the animation controller (Snappier duration: 1.2 seconds)
+    // 1. Setup the animation controller (1 second for a smooth, snappy fade)
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 1000),
     );
 
-    // 2. Animate background: Red -> White (happens during the first 60% of the animation)
+    // 2. Animate background: Red -> White
     _backgroundColor =
         ColorTween(
           begin: const Color.fromRGBO(253, 81, 61, 1.0),
@@ -43,8 +42,7 @@ class _SplashScreenState extends State<SplashScreen>
           ),
         );
 
-    // 3. Fade in logo: Invisible -> Visible
-    // (Starts at 0.4 to overlap nicely as the background turns white)
+    // 3. Fade in logo overlapping the background fade
     _contentOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
@@ -52,8 +50,12 @@ class _SplashScreenState extends State<SplashScreen>
       ),
     );
 
-    // 4. Start the animation, then initialize the app
-    _controller.forward().then((_) {
+    // 4. Start animation, wait 2 seconds after it finishes, then route
+    _controller.forward().then((_) async {
+      // The logo is now fully visible on a white background.
+      // Wait for 2 seconds as requested.
+      await Future.delayed(const Duration(seconds: 1));
+
       _initializeApp();
     });
   }

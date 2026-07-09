@@ -158,5 +158,5 @@ flutter_launcher_icons:
 
 flutter_native_splash:
   color: "#FD513D"
-  # We removed the image properties here so it's just a solid red screen.
-  # The logo reveal will be handled by the Flutter animation.
+  android_12:
+    color: "#FD513D" # This prevents the black flash on Android 12+
