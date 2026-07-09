@@ -1,13 +1,19 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+
+import '../../firebase_options.dart';
 import '../api/api_client.dart';
 import '../services/logger_service.dart';
-import '../../firebase_options.dart';
 
 class PushNotificationService {
-  static final PushNotificationService _instance = PushNotificationService._internal();
-  factory PushNotificationService() => _instance;
   PushNotificationService._internal();
+
+  static final PushNotificationService _instance =
+      PushNotificationService._internal();
+
+  factory PushNotificationService() => _instance;
+
+  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
 
   bool _initialized = false;
 
@@ -15,65 +21,73 @@ class PushNotificationService {
     if (_initialized) return;
 
     try {
-      // Attempt Firebase initialization
+      // Initialize Firebase
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
-      
-      final messaging = FirebaseMessaging.instance;
 
-      // Request permissions
-      final settings = await messaging.requestPermission(
+      // Request notification permission
+      final settings = await _messaging.requestPermission(
         alert: true,
-        announcement: false,
         badge: true,
+        sound: true,
+        announcement: false,
         carPlay: false,
         criticalAlert: false,
         provisional: false,
-        sound: true,
       );
 
-      LoggerService.logger.i('User granted permission: ${settings.authorizationStatus}');
+      LoggerService.logger.i(
+        'Notification permission: ${settings.authorizationStatus}',
+      );
 
-      // Get FCM Token
-      final token = await messaging.getToken();
-      if (token != null) {
+      // Register current FCM token
+      final token = await _messaging.getToken();
+
+      if (token != null && token.isNotEmpty) {
         LoggerService.logger.i('FCM Token: $token');
         await registerFcmToken(token);
       }
 
       // Listen for token refresh
-      messaging.onTokenRefresh.listen((newToken) async {
-        LoggerService.logger.i('FCM Token refreshed: $newToken');
+      _messaging.onTokenRefresh.listen((newToken) async {
+        LoggerService.logger.i('FCM token refreshed.');
         await registerFcmToken(newToken);
       });
 
-      // Handle foreground notifications
+      // Foreground notification
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-        LoggerService.logger.i('Received a foreground message: ${message.notification?.title}');
-        // You could dispatch local notification here if needed
+        LoggerService.logger.i(
+          'Foreground notification: ${message.notification?.title}',
+        );
       });
 
       _initialized = true;
-    } catch (e) {
-      LoggerService.logger.w('PushNotificationService initialization skipped/failed: $e. Firebase configurations might be missing.');
-      // Auto-simulate token registration for backend testing compatibility
-      await registerFcmToken("simulated_fcm_token_for_device_testing");
+    } catch (e, stackTrace) {
+      LoggerService.logger.e(
+        'Failed to initialize push notifications.',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
   }
 
   Future<void> registerFcmToken(String token) async {
     try {
-      // Register Device FCM token per spec
       final response = await ApiClient.dio.put(
         '/customer/profile',
         data: {'fcm_token': token},
       );
+
       if (response.statusCode == 200) {
-        LoggerService.logger.i('FCM token registered successfully on profile.');
+        LoggerService.logger.i('FCM token registered successfully.');
       }
-    } catch (e) {
-      LoggerService.logger.e('FCM token registration on backend failed: $e');
+    } catch (e, stackTrace) {
+      LoggerService.logger.e(
+        'Failed to register FCM token.',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
   }
 }

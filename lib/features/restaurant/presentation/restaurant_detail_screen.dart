@@ -340,13 +340,15 @@ class _RestaurantDetailScreenState extends ConsumerState<RestaurantDetailScreen>
                                                 : Row(
                                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                                     children: [
-                                                      IconButton(
-                                                        icon: const Icon(Icons.remove, size: 16, color: AppColors.primary),
-                                                        onPressed: () {
+                                                      InkWell(
+                                                        onTap: () {
                                                           ref.read(cartProvider.notifier).removeItem(item);
                                                         },
-                                                        padding: EdgeInsets.zero,
-                                                        constraints: const BoxConstraints(),
+                                                        borderRadius: BorderRadius.circular(4),
+                                                        child: const Padding(
+                                                          padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+                                                          child: Icon(Icons.remove, size: 14, color: AppColors.primary),
+                                                        ),
                                                       ),
                                                       Text(
                                                         cartItem.quantity.toString(),
@@ -356,13 +358,15 @@ class _RestaurantDetailScreenState extends ConsumerState<RestaurantDetailScreen>
                                                           fontSize: 14,
                                                         ),
                                                       ),
-                                                      IconButton(
-                                                        icon: const Icon(Icons.add, size: 16, color: AppColors.primary),
-                                                        onPressed: () {
+                                                      InkWell(
+                                                        onTap: () {
                                                           _handleAddItem(ref, context, item, restaurant);
                                                         },
-                                                        padding: EdgeInsets.zero,
-                                                        constraints: const BoxConstraints(),
+                                                        borderRadius: BorderRadius.circular(4),
+                                                        child: const Padding(
+                                                          padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+                                                          child: Icon(Icons.add, size: 14, color: AppColors.primary),
+                                                        ),
                                                       ),
                                                     ],
                                                   ),

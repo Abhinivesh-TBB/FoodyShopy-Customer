@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
+import '../../../core/services/logger_service.dart';
 import '../../../app/constants.dart';
 import '../../../core/storage/local_cache.dart';
 import '../../../shared/models/cart_item.dart';
@@ -11,6 +11,10 @@ class CartState {
   final String restaurantId;
   final String restaurantName;
 
+  static const double _platformFee = 15.0;
+  static const double _deliveryFee = 29.0;
+  static const double _taxRate = 0.05;
+
   const CartState({
     this.items = const [],
     this.restaurantId = '',
@@ -20,11 +24,11 @@ class CartState {
   double get subtotal =>
       items.fold(0.0, (sum, item) => sum + (item.item.price * item.quantity));
 
-  double get platformFee => subtotal > 0 ? 15.0 : 0.0; // 15 Rs platform fee
+  double get platformFee => subtotal > 0 ? _platformFee : 0;
 
-  double get taxesAndCharges => subtotal > 0 ? (subtotal * 0.05) : 0.0; // 5% GST
+  double get deliveryFee => subtotal > 0 ? _deliveryFee : 0;
 
-  double get deliveryFee => subtotal > 0 ? 29.0 : 0.0; // Flat 29 Rs delivery fee
+  double get taxesAndCharges => subtotal > 0 ? subtotal * _taxRate : 0;
 
   double get total => subtotal + taxesAndCharges + deliveryFee + platformFee;
 
@@ -43,6 +47,8 @@ class CartState {
   }
 }
 
+enum CartResult { success, conflict }
+
 class CartNotifier extends StateNotifier<CartState> {
   CartNotifier() : super(const CartState()) {
     _loadCart();
@@ -50,7 +56,7 @@ class CartNotifier extends StateNotifier<CartState> {
 
   void _loadCart() {
     try {
-      final cartJsonString = LocalCache.getString(AppConstants.keyCart);
+      final cartJsonString = LocalCache.getString(AppConstants.keyCartItems);
       if (cartJsonString != null && cartJsonString.isNotEmpty) {
         final List<dynamic> decodedList = json.decode(cartJsonString);
         final items = decodedList.map((e) => CartItem.fromJson(e)).toList();
@@ -63,25 +69,37 @@ class CartNotifier extends StateNotifier<CartState> {
           );
         }
       }
-    } catch (e) {
-      // Failed to load, start with empty
+    } catch (e, stackTrace) {
+      LoggerService.logger.e(
+        'Failed to load cart.',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
   }
 
   void _saveCart() {
     try {
       final list = state.items.map((e) => e.toJson()).toList();
-      LocalCache.setString(AppConstants.keyCart, json.encode(list));
-    } catch (e) {
-      // Error saving
+      LocalCache.setString(AppConstants.keyCartItems, json.encode(list));
+    } catch (e, stackTrace) {
+      LoggerService.logger.e(
+        'Failed to save cart.',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
   }
 
   /// Adds an item to the cart.
   /// Returns 'success' if added, or 'conflict' if the item belongs to a different restaurant.
-  String addItem(MenuItem item, String restaurantId, String restaurantName) {
+  CartResult addItem(
+    MenuItem item,
+    String restaurantId,
+    String restaurantName,
+  ) {
     if (state.items.isNotEmpty && state.restaurantId != restaurantId) {
-      return 'conflict';
+      return CartResult.conflict;
     }
 
     final existingIndex = state.items.indexWhere((e) => e.item.id == item.id);
@@ -89,16 +107,21 @@ class CartNotifier extends StateNotifier<CartState> {
 
     if (existingIndex >= 0) {
       final existingItem = state.items[existingIndex];
-      final updatedItem = existingItem.copyWith(quantity: existingItem.quantity + 1);
-      newItems = List<CartItem>.from(state.items)..[existingIndex] = updatedItem;
+      final updatedItem = existingItem.copyWith(
+        quantity: existingItem.quantity + 1,
+      );
+      newItems = List<CartItem>.from(state.items)
+        ..[existingIndex] = updatedItem;
     } else {
       newItems = List<CartItem>.from(state.items)
-        ..add(CartItem(
-          item: item,
-          quantity: 1,
-          restaurantId: restaurantId,
-          restaurantName: restaurantName,
-        ));
+        ..add(
+          CartItem(
+            item: item,
+            quantity: 1,
+            restaurantId: restaurantId,
+            restaurantName: restaurantName,
+          ),
+        );
     }
 
     state = state.copyWith(
@@ -108,11 +131,15 @@ class CartNotifier extends StateNotifier<CartState> {
     );
 
     _saveCart();
-    return 'success';
+    return CartResult.success;
   }
 
   /// Clears the current cart and adds the item (used when overriding restaurant conflict)
-  void clearAndAddItem(MenuItem item, String restaurantId, String restaurantName) {
+  void clearAndAddItem(
+    MenuItem item,
+    String restaurantId,
+    String restaurantName,
+  ) {
     final newItem = CartItem(
       item: item,
       quantity: 1,
@@ -137,8 +164,11 @@ class CartNotifier extends StateNotifier<CartState> {
     List<CartItem> newItems;
 
     if (existingItem.quantity > 1) {
-      final updatedItem = existingItem.copyWith(quantity: existingItem.quantity - 1);
-      newItems = List<CartItem>.from(state.items)..[existingIndex] = updatedItem;
+      final updatedItem = existingItem.copyWith(
+        quantity: existingItem.quantity - 1,
+      );
+      newItems = List<CartItem>.from(state.items)
+        ..[existingIndex] = updatedItem;
       state = state.copyWith(items: newItems);
     } else {
       newItems = List<CartItem>.from(state.items)..removeAt(existingIndex);
@@ -163,7 +193,8 @@ class CartNotifier extends StateNotifier<CartState> {
 
     final existingItem = state.items[existingIndex];
     final updatedItem = existingItem.copyWith(quantity: newQty);
-    final newItems = List<CartItem>.from(state.items)..[existingIndex] = updatedItem;
+    final newItems = List<CartItem>.from(state.items)
+      ..[existingIndex] = updatedItem;
 
     state = state.copyWith(items: newItems);
     _saveCart();
@@ -171,7 +202,7 @@ class CartNotifier extends StateNotifier<CartState> {
 
   void clearCart() {
     state = const CartState();
-    _saveCart();
+    LocalCache.remove(AppConstants.keyCartItems);
   }
 }
 

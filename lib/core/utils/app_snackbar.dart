@@ -1,19 +1,54 @@
 import 'package:flutter/material.dart';
+
 import '../../app/theme/theme.dart';
 
 class AppSnackbar {
   AppSnackbar._();
 
-  static void showSuccess(BuildContext context, String message) {
-    _show(context, message, AppColors.success, Icons.check_circle);
+  static const Duration _defaultDuration = Duration(seconds: 3);
+
+  static void showSuccess(
+    BuildContext context,
+    String message, {
+    Duration? duration,
+  }) {
+    _show(
+      context,
+      message,
+      AppColors.success,
+      Icons.check_circle_rounded,
+      duration,
+    );
   }
 
-  static void showError(BuildContext context, String message) {
-    _show(context, message, AppColors.error, Icons.error);
+  static void showError(
+    BuildContext context,
+    String message, {
+    Duration? duration,
+  }) {
+    _show(context, message, AppColors.error, Icons.error_rounded, duration);
   }
 
-  static void showInfo(BuildContext context, String message) {
-    _show(context, message, AppColors.info, Icons.info);
+  static void showWarning(
+    BuildContext context,
+    String message, {
+    Duration? duration,
+  }) {
+    _show(
+      context,
+      message,
+      AppColors.warning,
+      Icons.warning_amber_rounded,
+      duration,
+    );
+  }
+
+  static void showInfo(
+    BuildContext context,
+    String message, {
+    Duration? duration,
+  }) {
+    _show(context, message, AppColors.info, Icons.info_rounded, duration);
   }
 
   static void _show(
@@ -21,13 +56,19 @@ class AppSnackbar {
     String message,
     Color backgroundColor,
     IconData icon,
+    Duration? duration,
   ) {
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    if (!context.mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    final messenger = ScaffoldMessenger.of(context);
+
+    messenger.hideCurrentSnackBar();
+
+    messenger.showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
         backgroundColor: backgroundColor,
+        duration: duration ?? _defaultDuration,
         margin: const EdgeInsets.all(16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         content: Row(
@@ -35,7 +76,13 @@ class AppSnackbar {
             Icon(icon, color: Colors.white),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(message, style: const TextStyle(color: Colors.white)),
+              child: Text(
+                message,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ),
           ],
         ),

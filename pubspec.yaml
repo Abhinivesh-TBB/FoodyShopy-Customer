@@ -85,6 +85,8 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
 
+  connectivity_plus: ^7.0.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -153,11 +155,12 @@ flutter_launcher_icons:
   ios: true
   image_path: "assets/images/foodyshopy_logo.png"
   remove_alpha_ios: true
-
 flutter_native_splash:
-  color: "#ffffff"
+  color: "#FD513DFF"
   image: "assets/images/foodyshopy_logo.png"
   android_12:
     image: "assets/images/foodyshopy_logo.png"
-    color: "#ffffff"
+    color: "#FD513DFF"
+
+
 

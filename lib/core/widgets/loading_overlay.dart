@@ -1,38 +1,38 @@
 import 'package:flutter/material.dart';
 
-import '../../app/theme/theme.dart';
+import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_text_styles.dart';
 
 class LoadingOverlay extends StatelessWidget {
-  final String message;
-
   const LoadingOverlay({super.key, this.message = 'Please wait...'});
+
+  final String message;
 
   @override
   Widget build(BuildContext context) {
-    return ColoredBox(
-      color: Colors.black54,
-      child: Center(
-        child: Container(
-          width: 220,
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: AppColors.background,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(),
+    return Center(
+      child: Dialog(
+        elevation: 6,
+        backgroundColor: AppColors.background,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 220, maxWidth: 280),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator.adaptive(),
 
-              const SizedBox(height: 20),
+                const SizedBox(height: 20),
 
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: AppTextStyles.body,
-              ),
-            ],
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.body,
+                ),
+              ],
+            ),
           ),
         ),
       ),

@@ -44,7 +44,7 @@ final List<Restaurant> mockRestaurants = [
         name: 'Gobi 65 Dry',
         description: 'Deep-fried crispy cauliflower florets marinated in yogurt, curry leaves, and spicy red chillies.',
         price: 180,
-        imageUrl: 'https://images.unsplash.com/photo-1601050690597-df056fb4ce78?q=80&w=400&auto=format&fit=crop',
+        imageUrl: 'https://images.unsplash.com/photo-1565557623262-b51c2513a641?q=80&w=400&auto=format&fit=crop',
         isVeg: true,
         isBestseller: true,
         category: 'Starters',

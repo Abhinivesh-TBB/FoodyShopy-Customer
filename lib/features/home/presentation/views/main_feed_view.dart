@@ -187,7 +187,7 @@ class _MainFeedViewState extends ConsumerState<MainFeedView> {
                           _buildCategoryItem('Burger', 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=200'),
                           _buildCategoryItem('Pizza', 'https://images.unsplash.com/photo-1513104890138-7c749659a591?q=80&w=200'),
                           _buildCategoryItem('Desserts', 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?q=80&w=200'),
-                          _buildCategoryItem('North Indian', 'https://images.unsplash.com/photo-1601050690597-df056fb4ce78?q=80&w=200'),
+                          _buildCategoryItem('North Indian', 'https://images.unsplash.com/photo-1565557623262-b51c2513a641?q=80&w=200'),
                         ],
                       ),
                     ),

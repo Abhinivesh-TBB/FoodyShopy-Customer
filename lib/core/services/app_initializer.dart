@@ -1,26 +1,34 @@
 import '../network/network_service.dart';
-import '../storage/secure_storage_service.dart';
 import '../storage/local_cache.dart';
+import '../storage/secure_storage_service.dart';
 import 'push_notification_service.dart';
 
 class AppInitializer {
   AppInitializer._();
 
   static Future<bool> initialize() async {
-    // Initialize Local Cache (SharedPreferences)
-    await LocalCache.init();
+    try {
+      // Initialize local cache
+      await LocalCache.init();
 
-    // Check internet
-    await NetworkService.isConnected();
+      // Check internet connection
+      final isConnected = await NetworkService.isConnected();
 
-    // Initialize Push Notifications (Firebase Messaging)
-    await PushNotificationService().initialize();
+      // Initialize push notifications only if connected
+      if (isConnected) {
+        try {
+          await PushNotificationService().initialize();
+        } catch (_) {
+          // TODO: Log notification initialization failure
+        }
+      }
 
-    // Read saved token
-    final token = await SecureStorageService.getAccessToken();
+      // Read saved authentication token
+      final token = await SecureStorageService.getAccessToken();
 
-    // Return true if user is logged in
-    return token != null && token.isNotEmpty;
+      return token != null && token.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
   }
 }
-

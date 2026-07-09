@@ -1,22 +1,29 @@
+// Flutter
 import 'package:flutter/material.dart';
+
+// Packages
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../features/auth/login_screen.dart';
-import '../features/splash/splash_screen.dart';
-import '../features/auth/otp_screen.dart';
-import '../features/home/home_screen.dart';
-import '../features/restaurant/presentation/restaurant_detail_screen.dart';
-import '../features/cart/presentation/cart_screen.dart';
-import '../features/location/screens/location_permission_screen.dart';
-import '../features/location/screens/select_address_screen.dart';
-import '../features/location/screens/map_picker_screen.dart';
+
+// Core
 import '../core/storage/secure_storage_service.dart';
 import 'theme/theme.dart';
-import '../features/home/presentation/views/history_view.dart';
-import '../features/orders/presentation/order_tracking_screen.dart';
+
+// Features
+import '../features/auth/login_screen.dart';
+import '../features/auth/otp_screen.dart';
 import '../features/auth/providers/auth_provider.dart';
+import '../features/cart/presentation/cart_screen.dart';
 import '../features/checkout/presentation/checkout_screen.dart';
+import '../features/home/home_screen.dart';
 import '../features/home/presentation/views/account_view.dart';
+import '../features/home/presentation/views/history_view.dart';
+import '../features/location/screens/location_permission_screen.dart';
+import '../features/location/screens/map_picker_screen.dart';
+import '../features/location/screens/select_address_screen.dart';
+import '../features/orders/presentation/order_tracking_screen.dart';
+import '../features/restaurant/presentation/restaurant_detail_screen.dart';
+import '../features/splash/splash_screen.dart';
 
 class AppRoutes {
   AppRoutes._();
@@ -89,6 +96,9 @@ class RouterListenable extends ChangeNotifier {
 ///
 final routerProvider = Provider<GoRouter>((ref) {
   final listenable = RouterListenable(ref);
+
+  // Dispose the ChangeNotifier when the provider is destroyed.
+  ref.onDispose(listenable.dispose);
 
   return GoRouter(
     initialLocation: AppRoutes.splash,
@@ -239,24 +249,3 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
-/// Temporary screen used until each feature
-/// is implemented.
-class _Placeholder extends StatelessWidget {
-  final String title;
-
-  const _Placeholder(this.title);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: Center(
-        child: Text(
-          '$title\n\nComing Soon...',
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 20),
-        ),
-      ),
-    );
-  }
-}

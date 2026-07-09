@@ -3,20 +3,47 @@ import 'package:permission_handler/permission_handler.dart';
 class PermissionService {
   PermissionService._();
 
-  static Future<bool> isLocationGranted() async {
-    return Permission.location.isGranted;
+  /// Returns true if the given permission is granted.
+  static Future<bool> isGranted(Permission permission) async {
+    return permission.isGranted;
   }
 
-  static Future<bool> requestLocationPermission() async {
-    final status = await Permission.location.request();
+  /// Requests the given permission.
+  /// Returns true if permission is granted.
+  static Future<bool> request(Permission permission) async {
+    final status = await permission.request();
     return status.isGranted;
   }
 
-  static Future<bool> isLocationPermanentlyDenied() async {
-    return Permission.location.isPermanentlyDenied;
+  /// Returns true if the permission is permanently denied.
+  static Future<bool> isPermanentlyDenied(Permission permission) async {
+    return permission.isPermanentlyDenied;
   }
 
-  static Future<bool> openSettings() async {
+  /// Opens the application settings page.
+  static Future<bool> openSettings() {
     return openAppSettings();
   }
+
+  // ==========================
+  // Convenience Methods
+  // ==========================
+
+  static Future<bool> isLocationGranted() => isGranted(Permission.location);
+
+  static Future<bool> requestLocationPermission() =>
+      request(Permission.location);
+
+  static Future<bool> isLocationPermanentlyDenied() =>
+      isPermanentlyDenied(Permission.location);
+
+  static Future<bool> isNotificationGranted() =>
+      isGranted(Permission.notification);
+
+  static Future<bool> requestNotificationPermission() =>
+      request(Permission.notification);
+
+  static Future<bool> isCameraGranted() => isGranted(Permission.camera);
+
+  static Future<bool> requestCameraPermission() => request(Permission.camera);
 }

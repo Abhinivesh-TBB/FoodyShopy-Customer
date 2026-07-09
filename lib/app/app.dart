@@ -13,11 +13,9 @@ class FoodyShopyApp extends ConsumerWidget {
 
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
-
       title: 'FoodyShopy',
-
       theme: AppTheme.light,
-
+      themeAnimationDuration: Duration.zero,
       routerConfig: router,
     );
   }

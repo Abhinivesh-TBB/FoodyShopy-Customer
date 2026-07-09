@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
-import '../../app/theme/app_text_styles.dart';
 
+import '../../app/theme/app_text_styles.dart';
 
 class AppDialog {
   AppDialog._();
 
-  static Future<void> showConfirm(
+  static Future<bool?> showConfirm(
     BuildContext context, {
     required String title,
     required String message,
-    required VoidCallback onConfirm,
-    String confirmText = "Confirm",
-    String cancelText = "Cancel",
+    String confirmText = 'Confirm',
+    String cancelText = 'Cancel',
+    bool barrierDismissible = false,
   }) {
-    return showDialog(
+    return showDialog<bool>(
       context: context,
+      barrierDismissible: barrierDismissible,
       builder: (_) {
         return AlertDialog(
           shape: RoundedRectangleBorder(
@@ -25,14 +26,17 @@ class AppDialog {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(context);
+                if (context.mounted) {
+                  Navigator.of(context, rootNavigator: true).pop(false);
+                }
               },
               child: Text(cancelText),
             ),
             ElevatedButton(
               onPressed: () {
-                Navigator.pop(context);
-                onConfirm();
+                if (context.mounted) {
+                  Navigator.of(context, rootNavigator: true).pop(true);
+                }
               },
               child: Text(confirmText),
             ),

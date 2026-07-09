@@ -1,15 +1,22 @@
 import 'package:dio/dio.dart';
-import '../storage/secure_storage_service.dart';
+
 import '../../app/constants.dart';
 import '../services/logger_service.dart';
+import '../storage/secure_storage_service.dart';
 
 class AuthInterceptor extends Interceptor {
-  final Dio _refreshDio = Dio(BaseOptions(
-    baseUrl: AppConstants.apiBaseUrl,
-    connectTimeout: AppConstants.connectTimeout,
-    receiveTimeout: AppConstants.receiveTimeout,
-    headers: {'Content-Type': 'application/json'},
-  ));
+  AuthInterceptor();
+
+  final Dio _refreshDio = Dio(
+    BaseOptions(
+      baseUrl: AppConstants.apiBaseUrl,
+      connectTimeout: AppConstants.connectTimeout,
+      receiveTimeout: AppConstants.receiveTimeout,
+      sendTimeout: AppConstants.sendTimeout,
+      responseType: ResponseType.json,
+      headers: const {'Content-Type': 'application/json'},
+    ),
+  );
 
   @override
   Future<void> onRequest(
@@ -17,10 +24,12 @@ class AuthInterceptor extends Interceptor {
     RequestInterceptorHandler handler,
   ) async {
     final token = await SecureStorageService.getAccessToken();
+
     if (token != null && token.isNotEmpty) {
       options.headers['Authorization'] = 'Bearer $token';
     }
-    return handler.next(options);
+
+    handler.next(options);
   }
 
   @override
@@ -28,66 +37,82 @@ class AuthInterceptor extends Interceptor {
     DioException err,
     ErrorInterceptorHandler handler,
   ) async {
-    // Check if error is 401 (Unauthorized)
-    if (err.response?.statusCode == 401) {
-      final refreshToken = await SecureStorageService.getRefreshToken();
+    // Only handle Unauthorized responses
+    if (err.response?.statusCode != 401) {
+      return handler.next(err);
+    }
 
-      if (refreshToken != null && refreshToken.isNotEmpty) {
-        try {
-          LoggerService.logger.i("Token expired. Attempting refresh...");
+    final refreshToken = await SecureStorageService.getRefreshToken();
 
-          // Call the refresh token endpoint
-          final response = await _refreshDio.post(
-            '/auth/refresh',
-            data: {'refresh_token': refreshToken},
-          );
+    if (refreshToken == null || refreshToken.isEmpty) {
+      LoggerService.logger.w('No refresh token found. User must log in again.');
 
-          if (response.statusCode == 200 || response.statusCode == 201) {
-            final data = response.data;
-            final newAccessToken = data['access_token'] as String?;
-            final newRefreshToken = data['refresh_token'] as String?;
+      await SecureStorageService.clearTokens();
+      return handler.next(err);
+    }
 
-            if (newAccessToken != null && newAccessToken.isNotEmpty) {
-              await SecureStorageService.saveAccessToken(newAccessToken);
-              if (newRefreshToken != null && newRefreshToken.isNotEmpty) {
-                await SecureStorageService.saveRefreshToken(newRefreshToken);
-              }
+    try {
+      LoggerService.logger.i('Access token expired. Refreshing token...');
 
-              LoggerService.logger.i("Token refreshed successfully.");
+      final response = await _refreshDio.post(
+        AppConstants.refreshEndpoint,
+        data: {'refresh_token': refreshToken},
+      );
 
-              // Retry the original request
-              final requestOptions = err.requestOptions;
-              requestOptions.headers['Authorization'] = 'Bearer $newAccessToken';
+      final statusCode = response.statusCode ?? 0;
 
-              // Create a temporary Dio to retry the request
-              final retryDio = Dio(BaseOptions(
-                baseUrl: AppConstants.apiBaseUrl,
-                connectTimeout: AppConstants.connectTimeout,
-                receiveTimeout: AppConstants.receiveTimeout,
-              ));
+      if (statusCode >= 200 && statusCode < 300) {
+        final data = response.data;
 
-              final retryResponse = await retryDio.request(
-                requestOptions.path,
-                data: requestOptions.data,
-                queryParameters: requestOptions.queryParameters,
-                options: Options(
-                  method: requestOptions.method,
-                  headers: requestOptions.headers,
-                ),
-              );
+        final newAccessToken = data['access_token'] as String?;
+        final newRefreshToken = data['refresh_token'] as String?;
 
-              return handler.resolve(retryResponse);
-            }
-          }
-        } catch (e) {
-          LoggerService.logger.e("Token refresh failed: $e. Logging out user...");
-          await SecureStorageService.clearTokens();
-          // Optionally, redirect to login or notify app state here
+        if (newAccessToken == null || newAccessToken.isEmpty) {
+          throw Exception('Refresh API did not return an access token.');
         }
-      } else {
-        LoggerService.logger.w("No refresh token found. User must re-authenticate.");
-        await SecureStorageService.clearTokens();
+
+        await SecureStorageService.saveAccessToken(newAccessToken);
+
+        if (newRefreshToken != null && newRefreshToken.isNotEmpty) {
+          await SecureStorageService.saveRefreshToken(newRefreshToken);
+        }
+
+        LoggerService.logger.i('Token refreshed successfully.');
+
+        final requestOptions = err.requestOptions;
+
+        requestOptions.headers['Authorization'] = 'Bearer $newAccessToken';
+
+        final retryDio = Dio(
+          BaseOptions(
+            baseUrl: AppConstants.apiBaseUrl,
+            connectTimeout: AppConstants.connectTimeout,
+            receiveTimeout: AppConstants.receiveTimeout,
+            sendTimeout: AppConstants.sendTimeout,
+            responseType: ResponseType.json,
+          ),
+        );
+
+        final retryResponse = await retryDio.request(
+          requestOptions.path,
+          data: requestOptions.data,
+          queryParameters: requestOptions.queryParameters,
+          options: Options(
+            method: requestOptions.method,
+            headers: requestOptions.headers,
+          ),
+        );
+
+        return handler.resolve(retryResponse);
       }
+    } catch (e, stackTrace) {
+      LoggerService.logger.e(
+        'Token refresh failed.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+
+      await SecureStorageService.clearTokens();
     }
 
     return handler.next(err);
