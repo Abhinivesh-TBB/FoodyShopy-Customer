@@ -155,12 +155,8 @@ flutter_launcher_icons:
   ios: true
   image_path: "assets/images/foodyshopy_logo.png"
   remove_alpha_ios: true
+
 flutter_native_splash:
-  color: "#FD513DFF"
-  image: "assets/images/foodyshopy_logo.png"
-  android_12:
-    image: "assets/images/foodyshopy_logo.png"
-    color: "#FD513DFF"
-
-
-
+  color: "#FD513D"
+  # We removed the image properties here so it's just a solid red screen.
+  # The logo reveal will be handled by the Flutter animation.
