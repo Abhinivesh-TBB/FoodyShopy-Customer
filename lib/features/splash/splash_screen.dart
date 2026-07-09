@@ -55,7 +55,7 @@ class _SplashScreenState extends State<SplashScreen>
       // The logo is now fully visible on a white background.
       // Wait for 2 seconds as requested.
       await Future.delayed(const Duration(seconds: 1));
-
+      if (!mounted) return; // Add this line to prevent crashes!
       _initializeApp();
     });
   }

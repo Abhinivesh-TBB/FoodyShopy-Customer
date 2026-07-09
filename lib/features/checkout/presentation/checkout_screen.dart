@@ -33,9 +33,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   bool _isConfirmingPayment = false;
   PaymentMethod? _selectedPaymentMethod;
   String? _currentOrderId;
-  final _uuid = const Uuid();
 
-  // Flag to fallback to Razorpay simulation if real SDK/backend fails or keys are missing
+  // FIX: Persist the idempotency key for the lifetime of this specific checkout attempt
+  final String _idempotencyKey = const Uuid().v4();
+
   bool _usePaymentSimulation = false;
   final bool useMock = false;
 
@@ -46,8 +47,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
     _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
     _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
-    
-    // Set default payment method on load
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final paymentState = ref.read(paymentProvider);
       if (paymentState.methods.isNotEmpty) {
@@ -58,8 +58,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           );
         });
       }
-      
-      // Auto-validate draft cart on checkout load to get server totals
+
       _syncServerTotals();
     });
   }
@@ -76,26 +75,27 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final offerState = ref.read(offerProvider);
     if (cartState.items.isEmpty) return;
 
-    // Validate the current cart against the server (even without coupon code)
-    await ref.read(offerProvider.notifier).validateOffer(
-      restaurantId: cartState.restaurantId,
-      items: cartState.items.map((e) => {
-        'menu_item_id': e.item.id,
-        'quantity': e.quantity,
-      }).toList(),
-      code: offerState.appliedCode ?? '',
-      cartTotal: cartState.total,
-    );
+    await ref
+        .read(offerProvider.notifier)
+        .validateOffer(
+          restaurantId: cartState.restaurantId,
+          items: cartState.items
+              .map((e) => {'menu_item_id': e.item.id, 'quantity': e.quantity})
+              .toList(),
+          code: offerState.appliedCode ?? '',
+          cartTotal: cartState.total,
+        );
   }
 
-  // Razorpay event handlers
   void _handlePaymentSuccess(PaymentSuccessResponse response) {
     LoggerService.logger.i("Payment Success: ${response.paymentId}");
     _verifyPaymentOnServer(response.paymentId ?? '');
   }
 
   void _handlePaymentError(PaymentFailureResponse response) {
-    LoggerService.logger.e("Payment Error: ${response.code} - ${response.message}");
+    LoggerService.logger.e(
+      "Payment Error: ${response.code} - ${response.message}",
+    );
     setState(() {
       _isPlacingOrder = false;
       _isConfirmingPayment = false;
@@ -119,10 +119,16 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     const maxPolls = 15;
     bool isPaid = false;
 
-    // Poll GET /customer/orders/:id until payment_status flips to paid
     while (pollCount < maxPolls && !isPaid) {
+      // FIX: Terminate polling immediately if the user leaves the screen
+      if (!mounted) break;
+
       pollCount++;
       await Future.delayed(const Duration(seconds: 2));
+
+      // Secondary check after the await gap
+      if (!mounted) break;
+
       try {
         final response = await ApiClient.dio.get('/customer/orders/$orderId');
         if (response.statusCode == 200) {
@@ -147,34 +153,37 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       if (isPaid) {
         _onOrderPlacementSuccess(orderId);
       } else {
-        // Fallback: order payment wasn't confirmed on server within time
-        AppSnackbar.showInfo(context, "Confirming payment offline. Redirecting to tracking.");
+        AppSnackbar.showInfo(
+          context,
+          "Confirming payment offline. Redirecting to tracking.",
+        );
         _onOrderPlacementSuccess(orderId);
       }
     }
   }
 
-  // Launch real Razorpay checkout
   Future<void> _launchRazorpaySDK(String orderId, double amount) async {
     try {
-      final response = await ApiClient.dio.post('/customer/orders/$orderId/pay');
-      
+      final response = await ApiClient.dio.post(
+        '/customer/orders/$orderId/pay',
+      );
+
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = response.data;
         final razorpayOrderId = data['razorpay_order_id'] as String;
         final keyId = data['key_id'] as String;
-        
+
         var options = {
           'key': keyId,
-          'amount': (amount * 100).toInt(), // Razorpay expects amount in paise
+          'amount': (amount * 100).toInt(),
           'name': 'FoodyShopy',
           'description': 'Payment for Order #$orderId',
           'order_id': razorpayOrderId,
           'prefill': {
             'contact': '+919876543210',
-            'email': 'customer@foodyshopy.com'
+            'email': 'customer@foodyshopy.com',
           },
-          'timeout': 300, // 5 minutes
+          'timeout': 300,
         };
 
         _razorpay.open(options);
@@ -182,7 +191,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         throw Exception("Server payments setup failed");
       }
     } catch (e) {
-      LoggerService.logger.e("Razorpay SDK initialization failed: $e. Falling back to sandbox simulation.");
+      LoggerService.logger.e(
+        "Razorpay SDK initialization failed: $e. Falling back to sandbox simulation.",
+      );
       setState(() {
         _usePaymentSimulation = true;
       });
@@ -190,7 +201,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     }
   }
 
-  // Mock payment simulation window
   void _showSimulationGateway(double amount) {
     showDialog(
       context: context,
@@ -200,7 +210,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           builder: (context, setDialogState) {
             return Dialog(
               backgroundColor: const Color(0xFF0F172A),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -208,7 +220,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     padding: const EdgeInsets.all(16),
                     decoration: const BoxDecoration(
                       color: Color(0xFF1E293B),
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(16),
+                      ),
                     ),
                     child: const Row(
                       children: [
@@ -216,20 +230,33 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                         SizedBox(width: 8),
                         Text(
                           'Razorpay Sandbox Simulator',
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ],
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 24,
+                      horizontal: 20,
+                    ),
                     child: Column(
                       children: [
-                        const Text('AMOUNT TO PAY', style: TextStyle(color: Colors.grey, fontSize: 10)),
+                        const Text(
+                          'AMOUNT TO PAY',
+                          style: TextStyle(color: Colors.grey, fontSize: 10),
+                        ),
                         const SizedBox(height: 4),
                         Text(
                           '₹${amount.toStringAsFixed(2)}',
-                          style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ],
                     ),
@@ -245,21 +272,22 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           });
                           AppSnackbar.showError(context, "Payment cancelled");
                         },
-                        child: const Text('CANCEL', style: TextStyle(color: Colors.red)),
+                        child: const Text(
+                          'CANCEL',
+                          style: TextStyle(color: Colors.red),
+                        ),
                       ),
                       ElevatedButton(
                         onPressed: () async {
                           Navigator.pop(dialogCtx);
-                          // Trigger verified simulator path
                           final orderId = _currentOrderId ?? 'ord_sim';
-                          
+
                           setState(() {
                             _isConfirmingPayment = true;
                           });
-                          
-                          // Mock webhook wait
+
                           await Future.delayed(const Duration(seconds: 2));
-                          
+
                           if (mounted) {
                             setState(() {
                               _isConfirmingPayment = false;
@@ -268,7 +296,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                             _onOrderPlacementSuccess(orderId);
                           }
                         },
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blueAccent,
+                        ),
                         child: const Text('AUTHORIZE MOCK PAY'),
                       ),
                     ],
@@ -283,7 +313,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     );
   }
 
-  // Unified Order Placement Trigger
   Future<void> _checkout() async {
     final cartState = ref.read(cartProvider);
     final locationState = ref.read(locationProvider);
@@ -310,10 +339,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
     final subtotal = cartState.subtotal;
     final discount = offerState.discount;
-    final total = offerState.backendTotal ?? (cartState.total - discount).clamp(0.0, double.infinity);
+    final total =
+        offerState.backendTotal ??
+        (cartState.total - discount).clamp(0.0, double.infinity);
 
     if (useMock) {
-      final orderId = 'ord_${(10000 + (DateTime.now().millisecondsSinceEpoch % 90000))}';
+      final orderId =
+          'ord_${(10000 + (DateTime.now().millisecondsSinceEpoch % 90000))}';
       setState(() {
         _currentOrderId = orderId;
       });
@@ -322,6 +354,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         _showSimulationGateway(total);
       } else {
         await Future.delayed(const Duration(milliseconds: 600));
+        if (!mounted) return;
         setState(() {
           _isPlacingOrder = false;
         });
@@ -330,28 +363,22 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       return;
     }
 
-    // Create unique Idempotency Key header
-    final idempotencyKey = _uuid.v4();
-
-    // Prepare API request payload
     final orderPayload = {
       'restaurant_id': cartState.restaurantId,
       'delivery_address': locationState.activeAddressLine,
-      'items': cartState.items.map((e) => {
-        'menu_item_id': e.item.id,
-        'quantity': e.quantity,
-      }).toList(),
+      'items': cartState.items
+          .map((e) => {'menu_item_id': e.item.id, 'quantity': e.quantity})
+          .toList(),
       if (offerState.appliedCode != null) 'code': offerState.appliedCode,
     };
 
-    // Try posting real order to backend
     try {
       final response = await ApiClient.dio.post(
         '/customer/orders',
         data: orderPayload,
         options: Options(
           headers: {
-            'Idempotency-Key': idempotencyKey,
+            'Idempotency-Key': _idempotencyKey, // FIX: Used the persisted key
           },
         ),
       );
@@ -359,20 +386,18 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = response.data;
         final orderId = data['id'] ?? data['order_id'];
-        
-        // Grab server recomputed totals
+
         final serverTotal = (data['total_amount'] as num?)?.toDouble() ?? total;
 
         setState(() {
           _currentOrderId = orderId;
         });
 
-        // Trigger payment processing based on user choice
         if (_selectedPaymentMethod!.id == 'razorpay_select') {
           await _launchRazorpaySDK(orderId, serverTotal);
         } else {
-          // Direct COD placement
           await Future.delayed(const Duration(seconds: 1));
+          if (!mounted) return;
           setState(() {
             _isPlacingOrder = false;
           });
@@ -380,10 +405,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         }
       }
     } catch (e) {
-      LoggerService.logger.e("Failed to post order to server: $e. Running simulated order.");
-      
-      // FALLBACK: Simulate placement if backend fails
-      final orderId = 'ord_${(10000 + (DateTime.now().millisecondsSinceEpoch % 90000))}';
+      LoggerService.logger.e(
+        "Failed to post order to server: $e. Running simulated order.",
+      );
+
+      final orderId =
+          'ord_${(10000 + (DateTime.now().millisecondsSinceEpoch % 90000))}';
       setState(() {
         _currentOrderId = orderId;
       });
@@ -392,6 +419,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         _showSimulationGateway(total);
       } else {
         await Future.delayed(const Duration(milliseconds: 800));
+        if (!mounted) return;
         setState(() {
           _isPlacingOrder = false;
         });
@@ -401,36 +429,42 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   }
 
   void _onOrderPlacementSuccess(String orderId) {
+    // FIX: Safely prevent routing or provider access if the widget tree is unmounted
+    if (!mounted) return;
+
     final cartState = ref.read(cartProvider);
     final locationState = ref.read(locationProvider);
     final offerState = ref.read(offerProvider);
 
-    // Save order into dynamic history locally
-    final otp = (1000 + (DateTime.now().millisecondsSinceEpoch % 9000)).toString();
+    final otp = (1000 + (DateTime.now().millisecondsSinceEpoch % 9000))
+        .toString();
     final newOrder = OrderModel(
       id: orderId,
       restaurantName: cartState.restaurantName,
-      items: cartState.items.map((e) => OrderItem(
-        name: e.item.name,
-        quantity: e.quantity,
-        price: e.item.price,
-      )).toList(),
-      grandTotal: offerState.backendTotal ?? (cartState.total - offerState.discount),
+      items: cartState.items
+          .map(
+            (e) => OrderItem(
+              name: e.item.name,
+              quantity: e.quantity,
+              price: e.item.price,
+            ),
+          )
+          .toList(),
+      grandTotal:
+          offerState.backendTotal ?? (cartState.total - offerState.discount),
       date: 'Just now',
       status: 'Placed',
       handoffOtp: otp,
       addressLine: locationState.activeAddressLine,
       paymentMethod: _selectedPaymentMethod?.title ?? 'Cash on Delivery',
     );
-    ref.read(orderProvider.notifier).addOrder(newOrder);
 
-    // Clear local cart and offers
+    ref.read(orderProvider.notifier).addOrder(newOrder);
     ref.read(offerProvider.notifier).removeOffer();
     ref.read(cartProvider.notifier).clearCart();
 
     AppSnackbar.showSuccess(context, "Order Placed Successfully!");
-    
-    // Redirect to real-time order tracking
+
     context.go(AppRoutes.trackingPath(orderId));
   }
 
@@ -443,7 +477,17 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
     final discount = offerState.discount;
     final serverTotal = offerState.backendTotal;
-    final displayTotal = serverTotal ?? (cartState.total - discount).clamp(0.0, double.infinity);
+    final displayTotal =
+        serverTotal ?? (cartState.total - discount).clamp(0.0, double.infinity);
+
+    // Provide the dynamic Razorpay object for the selection list
+    final razorpayMethod = const PaymentMethod(
+      id: 'razorpay_select',
+      type: PaymentType.card,
+      title: 'Pay Online via Razorpay',
+      subtitle: 'Cards, Netbanking, UPI simulator',
+      isDefault: false,
+    );
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -463,9 +507,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 children: [
                   CircularProgressIndicator(color: AppColors.primary),
                   SizedBox(height: 20),
-                  Text('Confirming payment with server...', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text(
+                    'Confirming payment with server...',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   SizedBox(height: 6),
-                  Text('Please do not close the app.', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  Text(
+                    'Please do not close the app.',
+                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
                 ],
               ),
             )
@@ -486,9 +536,18 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       contentPadding: const EdgeInsets.all(16),
                       leading: const CircleAvatar(
                         backgroundColor: Color(0xFFFFF3E0),
-                        child: Icon(Icons.location_on, color: AppColors.primary),
+                        child: Icon(
+                          Icons.location_on,
+                          color: AppColors.primary,
+                        ),
                       ),
-                      title: const Text('Deliver to Address', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      title: const Text(
+                        'Deliver to Address',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
                       subtitle: Text(
                         locationState.activeAddressLine.isNotEmpty
                             ? locationState.activeAddressLine
@@ -497,14 +556,18 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+                      trailing: const Icon(
+                        Icons.arrow_forward_ios,
+                        size: 14,
+                        color: Colors.grey,
+                      ),
                       onTap: () => context.push(AppRoutes.selectAddress),
                     ),
                   ),
-                  
+
                   const SizedBox(height: 12),
 
-                  // 2. BILLING SUMMARY (ONLY SERVER COMPUTED TOTALS AS SOURCE OF TRUTH)
+                  // 2. BILLING SUMMARY
                   Card(
                     elevation: 0,
                     color: Colors.white,
@@ -517,32 +580,60 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('BILL DETAILS', style: TextStyle(color: Colors.grey, fontSize: 10, letterSpacing: 0.5)),
+                          const Text(
+                            'BILL DETAILS',
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontSize: 10,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
                           const SizedBox(height: 16),
-                          ...cartState.items.map((item) => Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 4),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text('${item.quantity} x ${item.item.name}', style: const TextStyle(fontSize: 13)),
-                                    Text('₹${(item.item.price * item.quantity).toStringAsFixed(0)}', style: const TextStyle(fontSize: 13)),
-                                  ],
-                                ),
-                              )),
+                          ...cartState.items.map(
+                            (item) => Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    '${item.quantity} x ${item.item.name}',
+                                    style: const TextStyle(fontSize: 13),
+                                  ),
+                                  Text(
+                                    '₹${(item.item.price * item.quantity).toStringAsFixed(0)}',
+                                    style: const TextStyle(fontSize: 13),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                           const Divider(height: 24, color: AppColors.divider),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('Cart Subtotal', style: TextStyle(fontSize: 13)),
-                              Text('₹${cartState.subtotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 13)),
+                              const Text(
+                                'Cart Subtotal',
+                                style: TextStyle(fontSize: 13),
+                              ),
+                              Text(
+                                '₹${cartState.subtotal.toStringAsFixed(2)}',
+                                style: const TextStyle(fontSize: 13),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 8),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('Delivery Charges', style: TextStyle(fontSize: 13)),
-                              Text('₹${cartState.deliveryFee.toStringAsFixed(2)}', style: const TextStyle(fontSize: 13)),
+                              const Text(
+                                'Delivery Charges',
+                                style: TextStyle(fontSize: 13),
+                              ),
+                              Text(
+                                '₹${cartState.deliveryFee.toStringAsFixed(2)}',
+                                style: const TextStyle(fontSize: 13),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 8),
@@ -550,8 +641,21 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text('Offer Discount (${offerState.appliedCode})', style: const TextStyle(color: AppColors.success, fontSize: 13)),
-                                Text('- ₹${discount.toStringAsFixed(2)}', style: const TextStyle(color: AppColors.success, fontWeight: FontWeight.bold, fontSize: 13)),
+                                Text(
+                                  'Offer Discount (${offerState.appliedCode})',
+                                  style: const TextStyle(
+                                    color: AppColors.success,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                Text(
+                                  '- ₹${discount.toStringAsFixed(2)}',
+                                  style: const TextStyle(
+                                    color: AppColors.success,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
                               ],
                             ),
                             const SizedBox(height: 8),
@@ -559,8 +663,20 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('Taxes & platform charges', style: TextStyle(color: Colors.grey, fontSize: 11)),
-                              Text('₹${(cartState.taxesAndCharges + cartState.platformFee).toStringAsFixed(2)}', style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                              const Text(
+                                'Taxes & platform charges',
+                                style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 11,
+                                ),
+                              ),
+                              Text(
+                                '₹${(cartState.taxesAndCharges + cartState.platformFee).toStringAsFixed(2)}',
+                                style: const TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 11,
+                                ),
+                              ),
                             ],
                           ),
                           const Divider(height: 24, color: AppColors.divider),
@@ -569,11 +685,19 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                             children: [
                               const Text(
                                 'Final Total',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.primary),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: AppColors.primary,
+                                ),
                               ),
                               Text(
                                 '₹${displayTotal.toStringAsFixed(2)}',
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.primary),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: AppColors.primary,
+                                ),
                               ),
                             ],
                           ),
@@ -581,14 +705,21 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                             const SizedBox(height: 8),
                             const Row(
                               children: [
-                                Icon(Icons.info_outline, size: 12, color: Colors.orange),
+                                Icon(
+                                  Icons.info_outline,
+                                  size: 12,
+                                  color: Colors.orange,
+                                ),
                                 SizedBox(width: 4),
                                 Text(
                                   'Calculating server totals...',
-                                  style: TextStyle(color: Colors.orange, fontSize: 10),
-                                )
+                                  style: TextStyle(
+                                    color: Colors.orange,
+                                    fontSize: 10,
+                                  ),
+                                ),
                               ],
-                            )
+                            ),
                           ],
                         ],
                       ),
@@ -610,42 +741,63 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('SELECT PAYMENT METHOD', style: TextStyle(color: Colors.grey, fontSize: 10, letterSpacing: 0.5)),
+                          const Text(
+                            'SELECT PAYMENT METHOD',
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontSize: 10,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
                           const SizedBox(height: 12),
-                          
+
                           // Saved UPI/COD Options
                           ...paymentState.methods.map((method) {
-                            final isSelected = _selectedPaymentMethod?.id == method.id;
-                            return RadioListTile<PaymentMethod>(
-                              value: method,
-                              groupValue: _selectedPaymentMethod,
+                            return RadioListTile<String>(
+                              // FIX: Use ID equality
+                              value: method.id,
+                              groupValue: _selectedPaymentMethod?.id,
                               activeColor: AppColors.primary,
-                              title: Text(method.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                              subtitle: Text(method.subtitle, style: const TextStyle(fontSize: 11)),
+                              title: Text(
+                                method.title,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              subtitle: Text(
+                                method.subtitle,
+                                style: const TextStyle(fontSize: 11),
+                              ),
                               onChanged: (val) {
                                 setState(() {
-                                  _selectedPaymentMethod = val;
+                                  _selectedPaymentMethod = method;
                                 });
                               },
                             );
                           }),
-                          
+
                           // Razorpay option
-                          RadioListTile<PaymentMethod>(
-                            value: const PaymentMethod(
-                              id: 'razorpay_select',
-                              type: PaymentType.card,
-                              title: 'Pay Online via Razorpay',
-                              subtitle: 'Cards, Netbanking, UPI simulator',
-                              isDefault: false,
-                            ),
-                            groupValue: _selectedPaymentMethod,
+                          RadioListTile<String>(
+                            // FIX: Use ID equality
+                            value: razorpayMethod.id,
+                            groupValue: _selectedPaymentMethod?.id,
                             activeColor: AppColors.primary,
-                            title: const Text('Pay Online via Razorpay', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blueAccent)),
-                            subtitle: const Text('Credit/Debit Cards, UPI, Netbanking', style: TextStyle(fontSize: 11)),
+                            title: const Text(
+                              'Pay Online via Razorpay',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: Colors.blueAccent,
+                              ),
+                            ),
+                            subtitle: const Text(
+                              'Credit/Debit Cards, UPI, Netbanking',
+                              style: TextStyle(fontSize: 11),
+                            ),
                             onChanged: (val) {
                               setState(() {
-                                _selectedPaymentMethod = val;
+                                _selectedPaymentMethod = razorpayMethod;
                               });
                             },
                           ),
@@ -675,9 +827,16 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       children: [
                         Text(
                           '₹${displayTotal.toStringAsFixed(2)}',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: AppColors.primary),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 20,
+                            color: AppColors.primary,
+                          ),
                         ),
-                        const Text('Total amount to pay', style: TextStyle(color: Colors.grey, fontSize: 10)),
+                        const Text(
+                          'Total amount to pay',
+                          style: TextStyle(color: Colors.grey, fontSize: 10),
+                        ),
                       ],
                     ),
                   ),
@@ -689,17 +848,25 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                         onPressed: _isPlacingOrder ? null : _checkout,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                         child: _isPlacingOrder
                             ? const SizedBox(
                                 width: 20,
                                 height: 20,
-                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
                               )
                             : const Text(
                                 'PLACE ORDER',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
                               ),
                       ),
                     ),

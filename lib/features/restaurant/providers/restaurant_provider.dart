@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart'; // Needed for list equality checks
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../shared/models/restaurant.dart';
 import '../../../shared/models/menu_item.dart';
 import '../../../core/api/api_client.dart';
@@ -47,6 +49,33 @@ class RestaurantState {
       selectedRestaurant: selectedRestaurant ?? this.selectedRestaurant,
     );
   }
+
+  // Prevents unnecessary UI rebuilds if the state hasn't actually changed
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is RestaurantState &&
+        listEquals(other.allRestaurants, allRestaurants) &&
+        listEquals(other.filteredRestaurants, filteredRestaurants) &&
+        other.isLoading == isLoading &&
+        other.searchQuery == searchQuery &&
+        other.isVegOnly == isVegOnly &&
+        other.isHighRatingOnly == isHighRatingOnly &&
+        other.isFastDeliveryOnly == isFastDeliveryOnly &&
+        other.selectedRestaurant?.id == selectedRestaurant?.id;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    allRestaurants,
+    filteredRestaurants,
+    isLoading,
+    searchQuery,
+    isVegOnly,
+    isHighRatingOnly,
+    isFastDeliveryOnly,
+    selectedRestaurant,
+  );
 }
 
 class RestaurantNotifier extends StateNotifier<RestaurantState> {
@@ -90,7 +119,9 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
         throw Exception("Server returned status ${response.statusCode}");
       }
     } catch (e) {
-      LoggerService.logger.e("Failed to fetch restaurants: $e. Falling back to mock.");
+      LoggerService.logger.e(
+        "Failed to fetch restaurants: $e. Falling back to mock.",
+      );
       final mockList = _getMockRestaurants();
       state = state.copyWith(
         allRestaurants: mockList,
@@ -122,24 +153,28 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
   }
 
   Future<void> selectRestaurant(String id) async {
-    // Locate in state first as immediate feedback
+    // 1. Locate in state first as immediate UI feedback
     Restaurant? restaurant = state.allRestaurants.firstWhere(
       (e) => e.id == id,
       orElse: () => _getMockRestaurants().firstWhere((e) => e.id == id),
     );
+
     state = state.copyWith(selectedRestaurant: restaurant);
 
     if (useMock) return;
 
     try {
-      final response = await ApiClient.dio.get('/customer/restaurants/$id/menu');
+      final response = await ApiClient.dio.get(
+        '/customer/restaurants/$id/menu',
+      );
       if (response.statusCode == 200) {
         final List<dynamic> menuData = response.data;
         final rawItems = menuData.map((e) => MenuItem.fromJson(e)).toList();
+
         // Hide out of stock items per spec
         final items = rawItems.where((e) => e.inStock).toList();
 
-        // Update selected restaurant with real items
+        // Note: If your Restaurant model has a `.copyWith(menu: items)`, use it here instead!
         final updatedRestaurant = Restaurant(
           id: restaurant.id,
           zoneId: restaurant.zoneId,
@@ -157,12 +192,28 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
           menu: items,
         );
 
-        state = state.copyWith(selectedRestaurant: updatedRestaurant);
+        // 2. Synchronize the updated restaurant back into the master list
+        final updatedAllRestaurants = state.allRestaurants.map((r) {
+          return r.id == updatedRestaurant.id ? updatedRestaurant : r;
+        }).toList();
+
+        state = state.copyWith(
+          selectedRestaurant: updatedRestaurant,
+          allRestaurants: updatedAllRestaurants,
+        );
+
+        // Re-apply filters so filteredRestaurants also gets the updated menu data
+        _applyFiltersAndSearch();
       }
     } catch (e) {
-      LoggerService.logger.e("Failed to fetch menu: $e. Falling back to mock menu.");
+      LoggerService.logger.e(
+        "Failed to fetch menu: $e. Falling back to mock menu.",
+      );
       try {
-        final mockRestaurant = _getMockRestaurants().firstWhere((e) => e.id == id);
+        final mockRestaurant = _getMockRestaurants().firstWhere(
+          (e) => e.id == id,
+        );
+
         final updatedRestaurant = Restaurant(
           id: restaurant.id,
           zoneId: restaurant.zoneId,
@@ -179,20 +230,34 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
           longitude: restaurant.longitude,
           menu: mockRestaurant.menu,
         );
-        state = state.copyWith(selectedRestaurant: updatedRestaurant);
-      } catch (_) {}
+
+        final updatedAllRestaurants = state.allRestaurants.map((r) {
+          return r.id == updatedRestaurant.id ? updatedRestaurant : r;
+        }).toList();
+
+        state = state.copyWith(
+          selectedRestaurant: updatedRestaurant,
+          allRestaurants: updatedAllRestaurants,
+        );
+        _applyFiltersAndSearch();
+      } catch (_) {
+        // Safe catch if mock isn't found
+      }
     }
   }
 
   void _applyFiltersAndSearch() {
-    var list = List<Restaurant>.from(state.allRestaurants);
+    // Optimization: Avoid unnecessary List.from() allocation
+    var list = state.allRestaurants;
 
     // Search query
     if (state.searchQuery.isNotEmpty) {
       final q = state.searchQuery.toLowerCase();
       list = list.where((r) {
         final matchesName = r.name.toLowerCase().contains(q);
-        final matchesCuisines = r.cuisines.any((c) => c.toLowerCase().contains(q));
+        final matchesCuisines = r.cuisines.any(
+          (c) => c.toLowerCase().contains(q),
+        );
         return matchesName || matchesCuisines;
       }).toList();
     }
@@ -207,9 +272,16 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
       list = list.where((r) => r.deliveryTimeMin <= 25).toList();
     }
 
-    // Veg Only filter (displays restaurants which have vegetarian options or cuisines containing vegetarian hints)
+    // Veg Only filter fix
     if (state.isVegOnly) {
-      list = list.where((r) => r.menu.any((item) => item.isVeg)).toList();
+      list = list.where((r) {
+        // If the menu is already loaded, check the actual items
+        if (r.menu.isNotEmpty) {
+          return r.menu.any((item) => item.isVeg);
+        }
+        // If the menu isn't loaded yet, fallback to checking cuisines
+        return r.cuisines.any((c) => c.toLowerCase().contains('veg'));
+      }).toList();
     }
 
     state = state.copyWith(filteredRestaurants: list);
@@ -220,6 +292,7 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
   }
 }
 
-final restaurantProvider = StateNotifierProvider<RestaurantNotifier, RestaurantState>((ref) {
-  return RestaurantNotifier();
-});
+final restaurantProvider =
+    StateNotifierProvider<RestaurantNotifier, RestaurantState>((ref) {
+      return RestaurantNotifier();
+    });

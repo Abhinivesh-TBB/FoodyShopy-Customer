@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart'; // Added for listEquals
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../core/services/logger_service.dart';
 import '../../../app/constants.dart';
 import '../../../core/storage/local_cache.dart';
@@ -21,6 +23,7 @@ class CartState {
     this.restaurantName = '',
   });
 
+  // Derived state computed on the fly
   double get subtotal =>
       items.fold(0.0, (sum, item) => sum + (item.item.price * item.quantity));
 
@@ -45,6 +48,19 @@ class CartState {
       restaurantName: restaurantName ?? this.restaurantName,
     );
   }
+
+  // Added Equality Overrides to prevent unnecessary UI rebuilds
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is CartState &&
+        listEquals(other.items, items) &&
+        other.restaurantId == restaurantId &&
+        other.restaurantName == restaurantName;
+  }
+
+  @override
+  int get hashCode => Object.hash(items, restaurantId, restaurantName);
 }
 
 enum CartResult { success, conflict }
@@ -80,6 +96,10 @@ class CartNotifier extends StateNotifier<CartState> {
 
   void _saveCart() {
     try {
+      if (state.items.isEmpty) {
+        LocalCache.remove(AppConstants.keyCartItems);
+        return;
+      }
       final list = state.items.map((e) => e.toJson()).toList();
       LocalCache.setString(AppConstants.keyCartItems, json.encode(list));
     } catch (e, stackTrace) {
@@ -92,7 +112,7 @@ class CartNotifier extends StateNotifier<CartState> {
   }
 
   /// Adds an item to the cart.
-  /// Returns 'success' if added, or 'conflict' if the item belongs to a different restaurant.
+  /// Returns [CartResult.success] if added, or [CartResult.conflict] if the item belongs to a different restaurant.
   CartResult addItem(
     MenuItem item,
     String restaurantId,
@@ -183,20 +203,28 @@ class CartNotifier extends StateNotifier<CartState> {
   }
 
   void updateQuantity(MenuItem item, int newQty) {
-    if (newQty <= 0) {
-      removeItem(item);
-      return;
-    }
-
     final existingIndex = state.items.indexWhere((e) => e.item.id == item.id);
     if (existingIndex < 0) return;
 
-    final existingItem = state.items[existingIndex];
-    final updatedItem = existingItem.copyWith(quantity: newQty);
-    final newItems = List<CartItem>.from(state.items)
-      ..[existingIndex] = updatedItem;
+    if (newQty <= 0) {
+      // Fix: Explicitly remove the item rather than delegating to removeItem()
+      // which only decremented by 1.
+      final newItems = List<CartItem>.from(state.items)
+        ..removeAt(existingIndex);
+      if (newItems.isEmpty) {
+        state = const CartState();
+      } else {
+        state = state.copyWith(items: newItems);
+      }
+    } else {
+      final existingItem = state.items[existingIndex];
+      final updatedItem = existingItem.copyWith(quantity: newQty);
+      final newItems = List<CartItem>.from(state.items)
+        ..[existingIndex] = updatedItem;
 
-    state = state.copyWith(items: newItems);
+      state = state.copyWith(items: newItems);
+    }
+
     _saveCart();
   }
 

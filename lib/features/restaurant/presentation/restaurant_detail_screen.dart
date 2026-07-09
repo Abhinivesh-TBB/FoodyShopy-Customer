@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../app/router.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_text_styles.dart';
@@ -16,35 +17,41 @@ class RestaurantDetailScreen extends ConsumerStatefulWidget {
   const RestaurantDetailScreen({super.key, required this.restaurantId});
 
   @override
-  ConsumerState<RestaurantDetailScreen> createState() => _RestaurantDetailScreenState();
+  ConsumerState<RestaurantDetailScreen> createState() =>
+      _RestaurantDetailScreenState();
 }
 
-class _RestaurantDetailScreenState extends ConsumerState<RestaurantDetailScreen> {
+class _RestaurantDetailScreenState
+    extends ConsumerState<RestaurantDetailScreen> {
   bool _isVegFilter = false;
 
   @override
   void initState() {
     super.initState();
-    // Load/select target restaurant
+    // Load/select target restaurant safely after initial build
     Future.microtask(() {
-      ref.read(restaurantProvider.notifier).selectRestaurant(widget.restaurantId);
+      ref
+          .read(restaurantProvider.notifier)
+          .selectRestaurant(widget.restaurantId);
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final restState = ref.watch(restaurantProvider);
-    final cartState = ref.watch(cartProvider);
+    // Notice: We removed cartState from here to prevent full-screen rebuilds on cart updates.
     final restaurant = restState.selectedRestaurant;
 
     if (restaurant == null) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+        body: Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
       );
     }
 
     // Group items by category
-    final menuItems = _isVegFilter 
+    final menuItems = _isVegFilter
         ? restaurant.menu.where((e) => e.isVeg).toList()
         : restaurant.menu;
 
@@ -61,12 +68,19 @@ class _RestaurantDetailScreenState extends ConsumerState<RestaurantDetailScreen>
             expandedHeight: 120,
             floating: false,
             pinned: true,
-            title: Text(restaurant.name, style: AppTextStyles.heading2.copyWith(fontSize: 18)),
+            title: Text(
+              restaurant.name,
+              style: AppTextStyles.heading2.copyWith(fontSize: 18),
+            ),
             backgroundColor: Colors.white,
             surfaceTintColor: Colors.white,
             elevation: 0,
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.textPrimary, size: 20),
+              icon: const Icon(
+                Icons.arrow_back_ios_new,
+                color: AppColors.textPrimary,
+                size: 20,
+              ),
               onPressed: () => context.pop(),
             ),
           ),
@@ -84,7 +98,7 @@ class _RestaurantDetailScreenState extends ConsumerState<RestaurantDetailScreen>
                     color: Colors.black.withOpacity(0.04),
                     blurRadius: 15,
                     offset: const Offset(0, 6),
-                  )
+                  ),
                 ],
                 border: Border.all(color: AppColors.divider.withOpacity(0.5)),
               ),
@@ -99,11 +113,18 @@ class _RestaurantDetailScreenState extends ConsumerState<RestaurantDetailScreen>
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.star, color: AppColors.success, size: 18),
+                              const Icon(
+                                Icons.star,
+                                color: AppColors.success,
+                                size: 18,
+                              ),
                               const SizedBox(width: 4),
                               Text(
                                 '${restaurant.rating} (${restaurant.deliveryTimeMin} mins)',
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
                               ),
                             ],
                           ),
@@ -115,14 +136,21 @@ class _RestaurantDetailScreenState extends ConsumerState<RestaurantDetailScreen>
                         ],
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.surface,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
                           restaurant.distance,
-                          style: TextStyle(color: Colors.grey[700], fontWeight: FontWeight.bold, fontSize: 12),
+                          style: TextStyle(
+                            color: Colors.grey[700],
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                     ],
@@ -130,7 +158,11 @@ class _RestaurantDetailScreenState extends ConsumerState<RestaurantDetailScreen>
                   const Divider(height: 24, color: AppColors.divider),
                   Row(
                     children: [
-                      const Icon(Icons.local_offer, color: AppColors.primary, size: 16),
+                      const Icon(
+                        Icons.local_offer,
+                        color: AppColors.primary,
+                        size: 16,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -157,7 +189,10 @@ class _RestaurantDetailScreenState extends ConsumerState<RestaurantDetailScreen>
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
-                  const Text('Veg Only', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                  const Text(
+                    'Veg Only',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                  ),
                   const SizedBox(width: 8),
                   Switch.adaptive(
                     value: _isVegFilter,
@@ -173,9 +208,13 @@ class _RestaurantDetailScreenState extends ConsumerState<RestaurantDetailScreen>
             ),
           ),
 
-          const SliverToBoxAdapter(child: Divider(height: 1, color: AppColors.divider)),
+          const SliverToBoxAdapter(
+            child: Divider(height: 1, color: AppColors.divider),
+          ),
 
-          // Menu List Grouped by Category
+          // ---------------------------------------------------------
+          // DYNAMIC SLIVER GENERATION (Highly Optimized for Scrolling)
+          // ---------------------------------------------------------
           if (categories.isEmpty)
             const SliverToBoxAdapter(
               child: Padding(
@@ -189,269 +228,335 @@ class _RestaurantDetailScreenState extends ConsumerState<RestaurantDetailScreen>
               ),
             )
           else
-            SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, catIndex) {
-                  final categoryName = categories.keys.elementAt(catIndex);
-                  final items = categories[categoryName]!;
-
+            for (final category in categories.entries) ...[
+              // 1. Category Title Sliver
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.only(
+                    left: 16,
+                    right: 16,
+                    top: 24,
+                    bottom: 8,
+                  ),
+                  child: Text(
+                    '${category.key} (${category.value.length})',
+                    style: AppTextStyles.heading2.copyWith(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              // 2. Category Items List Sliver
+              SliverList(
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  final item = category.value[index];
                   return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Padding(
-                        padding: const EdgeInsets.only(left: 16, right: 16, top: 20, bottom: 8),
-                        child: Text(
-                          '$categoryName (${items.length})',
-                          style: AppTextStyles.heading2.copyWith(fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      ListView.separated(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        padding: EdgeInsets.zero,
-                        itemCount: items.length,
-                        separatorBuilder: (context, index) => const Divider(
+                      _MenuItemTile(item: item, restaurant: restaurant),
+                      if (index < category.value.length - 1)
+                        const Divider(
                           height: 1,
                           indent: 16,
                           endIndent: 16,
                           color: AppColors.divider,
                         ),
-                        itemBuilder: (context, index) {
-                          final item = items[index];
-                          final cartItem = cartState.items.firstWhere(
-                            (e) => e.item.id == item.id,
-                            orElse: () => CartItem(
-                              item: item,
-                              quantity: 0,
-                              restaurantId: '',
-                              restaurantName: '',
-                            ),
-                          );
-
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Item Detail
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      _VegNonVegIndicator(isVeg: item.isVeg),
-                                      const SizedBox(height: 6),
-                                      if (item.isBestseller) ...[
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color: Colors.amber[100],
-                                            borderRadius: BorderRadius.circular(4),
-                                          ),
-                                          child: Text(
-                                            '★ BESTSELLER',
-                                            style: TextStyle(
-                                              color: Colors.amber[900],
-                                              fontSize: 9,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                      ],
-                                      Text(
-                                        item.name,
-                                        style: AppTextStyles.heading2.copyWith(fontSize: 15, fontWeight: FontWeight.bold),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        '₹${item.price.toStringAsFixed(0)}',
-                                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        item.description,
-                                        style: AppTextStyles.caption.copyWith(fontSize: 12),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-
-                                // Image & Add controls
-                                Column(
-                                  children: [
-                                    Stack(
-                                      alignment: Alignment.bottomCenter,
-                                      clipBehavior: Clip.none,
-                                      children: [
-                                        // Food image
-                                        ClipRRect(
-                                          borderRadius: BorderRadius.circular(12),
-                                          child: Image.network(
-                                            item.imageUrl,
-                                            width: 110,
-                                            height: 110,
-                                            fit: double.infinity == 0.0 ? null : BoxFit.cover,
-                                            errorBuilder: (context, error, stackTrace) => Container(
-                                              width: 110,
-                                              height: 110,
-                                              color: Colors.grey[100],
-                                              child: const Icon(Icons.fastfood, color: Colors.grey),
-                                            ),
-                                          ),
-                                        ),
-
-                                        // Add button
-                                        Positioned(
-                                          bottom: -15,
-                                          child: Container(
-                                            height: 38,
-                                            width: 90,
-                                            decoration: BoxDecoration(
-                                              color: Colors.white,
-                                              borderRadius: BorderRadius.circular(8),
-                                              border: Border.all(color: AppColors.primary.withOpacity(0.3)),
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  color: Colors.black.withOpacity(0.06),
-                                                  blurRadius: 6,
-                                                  offset: const Offset(0, 3),
-                                                ),
-                                              ],
-                                            ),
-                                            child: cartItem.quantity == 0
-                                                ? TextButton(
-                                                    onPressed: () => _handleAddItem(ref, context, item, restaurant),
-                                                    style: TextButton.styleFrom(
-                                                      foregroundColor: AppColors.primary,
-                                                      padding: EdgeInsets.zero,
-                                                    ),
-                                                    child: Text(
-                                                      'ADD',
-                                                      style: AppTextStyles.button.copyWith(
-                                                        color: AppColors.primary,
-                                                        fontSize: 14,
-                                                        fontWeight: FontWeight.bold,
-                                                      ),
-                                                    ),
-                                                  )
-                                                : Row(
-                                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                                    children: [
-                                                      InkWell(
-                                                        onTap: () {
-                                                          ref.read(cartProvider.notifier).removeItem(item);
-                                                        },
-                                                        borderRadius: BorderRadius.circular(4),
-                                                        child: const Padding(
-                                                          padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
-                                                          child: Icon(Icons.remove, size: 14, color: AppColors.primary),
-                                                        ),
-                                                      ),
-                                                      Text(
-                                                        cartItem.quantity.toString(),
-                                                        style: const TextStyle(
-                                                          fontWeight: FontWeight.bold,
-                                                          color: AppColors.primary,
-                                                          fontSize: 14,
-                                                        ),
-                                                      ),
-                                                      InkWell(
-                                                        onTap: () {
-                                                          _handleAddItem(ref, context, item, restaurant);
-                                                        },
-                                                        borderRadius: BorderRadius.circular(4),
-                                                        child: const Padding(
-                                                          padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
-                                                          child: Icon(Icons.add, size: 14, color: AppColors.primary),
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 15),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
                     ],
                   );
-                },
-                childCount: categories.length,
+                }, childCount: category.value.length),
               ),
-            ),
+            ],
 
           const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
       ),
 
       // Floating bottom sheet cart summary
-      bottomNavigationBar: cartState.totalItemCount > 0
-          ? Container(
-              margin: const EdgeInsets.all(16),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withOpacity(0.3),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
+      // We wrap just the bottom bar in a Consumer so it updates independently
+      bottomNavigationBar: Consumer(
+        builder: (context, ref, child) {
+          final cartState = ref.watch(cartProvider);
+          if (cartState.totalItemCount == 0) return const SizedBox.shrink();
+
+          return Container(
+            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withOpacity(0.3),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${cartState.totalItemCount} ITEM${cartState.totalItemCount > 1 ? 'S' : ''} | ₹${cartState.subtotal.toStringAsFixed(0)}',
+                      style: AppTextStyles.button.copyWith(fontSize: 14),
+                    ),
+                    Text(
+                      'Taxes & Charges extra',
+                      style: AppTextStyles.caption.copyWith(
+                        color: Colors.white70,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+                TextButton(
+                  onPressed: () => context.push(AppRoutes.cart),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    backgroundColor: Colors.white.withOpacity(0.2),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                   ),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '${cartState.totalItemCount} ITEM${cartState.totalItemCount > 1 ? 'S' : ''} | ₹${cartState.subtotal.toStringAsFixed(0)}',
+                        'View Cart',
                         style: AppTextStyles.button.copyWith(fontSize: 14),
                       ),
-                      Text(
-                        'Taxes & Charges extra',
-                        style: AppTextStyles.caption.copyWith(color: Colors.white70, fontSize: 11),
+                      const SizedBox(width: 4),
+                      const Icon(
+                        Icons.arrow_forward_ios,
+                        color: Colors.white,
+                        size: 14,
                       ),
                     ],
                   ),
-                  TextButton(
-                    onPressed: () => context.push(AppRoutes.cart),
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      backgroundColor: Colors.white.withOpacity(0.2),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// EXTRACTED WIDGETS
+// ============================================================================
+
+class _MenuItemTile extends ConsumerWidget {
+  final MenuItem item;
+  final Restaurant restaurant;
+
+  const _MenuItemTile({required this.item, required this.restaurant});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Only this specific widget rebuilds when its quantity changes in the cart!
+    final cartState = ref.watch(cartProvider);
+    final cartItem = cartState.items.firstWhere(
+      (e) => e.item.id == item.id,
+      orElse: () => CartItem(
+        item: item,
+        quantity: 0,
+        restaurantId: restaurant.id,
+        restaurantName: restaurant.name,
+      ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Item Detail
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _VegNonVegIndicator(isVeg: item.isVeg),
+                const SizedBox(height: 6),
+                if (item.isBestseller) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text('View Cart', style: AppTextStyles.button.copyWith(fontSize: 14)),
-                        const SizedBox(width: 4),
-                        const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 14),
-                      ],
+                    decoration: BoxDecoration(
+                      color: Colors.amber[100],
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '★ BESTSELLER',
+                      style: TextStyle(
+                        color: Colors.amber[900],
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                ],
+                Text(
+                  item.name,
+                  style: AppTextStyles.heading2.copyWith(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '₹${item.price.toStringAsFixed(0)}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  item.description,
+                  style: AppTextStyles.caption.copyWith(fontSize: 12),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+
+          // Image & Add controls
+          Column(
+            children: [
+              Stack(
+                alignment: Alignment.bottomCenter,
+                clipBehavior: Clip.none,
+                children: [
+                  // Food image
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      item.imageUrl,
+                      width: 110,
+                      height: 110,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        width: 110,
+                        height: 110,
+                        color: Colors.grey[100],
+                        child: const Icon(Icons.fastfood, color: Colors.grey),
+                      ),
+                    ),
+                  ),
+
+                  // Add button
+                  Positioned(
+                    bottom: -15,
+                    child: Container(
+                      height: 38,
+                      width: 90,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: AppColors.primary.withOpacity(0.3),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.06),
+                            blurRadius: 6,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: cartItem.quantity == 0
+                          ? TextButton(
+                              onPressed: () => _handleAddItem(ref, context),
+                              style: TextButton.styleFrom(
+                                foregroundColor: AppColors.primary,
+                                padding: EdgeInsets.zero,
+                              ),
+                              child: Text(
+                                'ADD',
+                                style: AppTextStyles.button.copyWith(
+                                  color: AppColors.primary,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                InkWell(
+                                  onTap: () {
+                                    ref
+                                        .read(cartProvider.notifier)
+                                        .removeItem(item);
+                                  },
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: const Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 8.0,
+                                      vertical: 6.0,
+                                    ),
+                                    child: Icon(
+                                      Icons.remove,
+                                      size: 14,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  cartItem.quantity.toString(),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primary,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                InkWell(
+                                  onTap: () => _handleAddItem(ref, context),
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: const Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 8.0,
+                                      vertical: 6.0,
+                                    ),
+                                    child: Icon(
+                                      Icons.add,
+                                      size: 14,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                     ),
                   ),
                 ],
               ),
-            )
-          : null,
+              const SizedBox(height: 15),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
-  void _handleAddItem(WidgetRef ref, BuildContext context, MenuItem item, Restaurant restaurant) {
-    final result = ref.read(cartProvider.notifier).addItem(item, restaurant.id, restaurant.name);
+  void _handleAddItem(WidgetRef ref, BuildContext context) {
+    final result = ref
+        .read(cartProvider.notifier)
+        .addItem(item, restaurant.id, restaurant.name);
 
     if (result == 'conflict') {
       showDialog(
@@ -460,19 +565,30 @@ class _RestaurantDetailScreenState extends ConsumerState<RestaurantDetailScreen>
           title: const Text('Replace cart items?'),
           content: Text(
             'Your cart contains dishes from "${ref.read(cartProvider).restaurantName}". '
-            'Do you want to discard them and add this dish from "${restaurant.name}" instead?'
+            'Do you want to discard them and add this dish from "${restaurant.name}" instead?',
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogCtx),
-              child: const Text('CANCEL', style: TextStyle(color: AppColors.textSecondary)),
+              child: const Text(
+                'CANCEL',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
             ),
             TextButton(
               onPressed: () {
-                ref.read(cartProvider.notifier).clearAndAddItem(item, restaurant.id, restaurant.name);
+                ref
+                    .read(cartProvider.notifier)
+                    .clearAndAddItem(item, restaurant.id, restaurant.name);
                 Navigator.pop(dialogCtx);
               },
-              child: const Text('YES, REPLACE', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+              child: const Text(
+                'YES, REPLACE',
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ],
         ),

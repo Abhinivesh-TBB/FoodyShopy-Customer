@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme/app_text_styles.dart';
 import '../../app/router.dart';
@@ -9,7 +10,6 @@ import '../../shared/widgets/app_logo.dart';
 import '../../shared/widgets/custom_text_field.dart';
 import '../../shared/widgets/primary_button.dart';
 import '../../core/utils/app_snackbar.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -20,9 +20,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-
   final TextEditingController _phoneController = TextEditingController();
-
 
   @override
   void dispose() {
@@ -31,20 +29,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _continue() async {
+    // 1. Dismiss the keyboard immediately when the button is pressed
+    FocusScope.of(context).unfocus();
+
     if (!_formKey.currentState!.validate()) return;
 
-    final success = await ref
-        .read(authProvider.notifier)
-        .sendOtp(_phoneController.text.trim());
+    // Optional: Prevent multiple submissions if already loading
+    if (ref.read(authProvider).isLoading) return;
 
+    final phoneNumber = _phoneController.text.trim();
+
+    final success = await ref.read(authProvider.notifier).sendOtp(phoneNumber);
+
+    // 2. Safety check before navigating
     if (!mounted) return;
 
     if (success) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          context.push(AppRoutes.otp);
-        }
-      });
+      // 3. Direct navigation (no post-frame callback needed)
+      // Passing the phone number as extra data to the OTP screen
+      context.push(AppRoutes.otp, extra: phoneNumber);
     } else {
       AppSnackbar.showError(context, "Failed to send OTP");
     }
@@ -53,6 +56,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
+
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -93,21 +97,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       LengthLimitingTextInputFormatter(10),
                     ],
                     textInputAction: TextInputAction.done,
-
                     prefix: const Padding(
                       padding: EdgeInsets.all(14),
                       child: Text("+91", style: TextStyle(fontSize: 16)),
                     ),
-
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
                         return "Please enter your mobile number";
                       }
-
                       if (value.length != 10) {
                         return "Enter a valid 10-digit number";
                       }
-
                       return null;
                     },
                   ),

@@ -33,7 +33,20 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
   String _getFormattedDate() {
     final now = DateTime.now();
-    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     String period = now.hour >= 12 ? 'PM' : 'AM';
     int hour = now.hour % 12;
     if (hour == 0) hour = 12;
@@ -48,12 +61,15 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final locationState = ref.watch(locationProvider);
     final paymentState = ref.watch(paymentProvider);
 
-    if (_selectedPaymentMethod == null && paymentState.methods.isNotEmpty) {
-      _selectedPaymentMethod = paymentState.methods.firstWhere(
-        (e) => e.isDefault,
-        orElse: () => paymentState.methods.first,
-      );
-    }
+    // Safely derive the active payment method without mutating state inside build()
+    final activePaymentMethod =
+        _selectedPaymentMethod ??
+        (paymentState.methods.isNotEmpty
+            ? paymentState.methods.firstWhere(
+                (e) => e.isDefault,
+                orElse: () => paymentState.methods.first,
+              )
+            : null);
 
     if (cartState.items.isEmpty) {
       return Scaffold(
@@ -69,7 +85,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.shopping_cart_outlined, size: 80, color: Colors.grey[400]),
+                Icon(
+                  Icons.shopping_cart_outlined,
+                  size: 80,
+                  color: Colors.grey[400],
+                ),
                 const SizedBox(height: 24),
                 Text(
                   'Your cart is empty',
@@ -97,7 +117,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     }
 
     final double discount = offerState.discount;
-    final double grandTotal = (cartState.total - discount).clamp(0.0, double.infinity);
+    final double grandTotal = (cartState.total - discount).clamp(
+      0.0,
+      double.infinity,
+    );
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -107,7 +130,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Checkout', style: AppTextStyles.heading2.copyWith(fontSize: 16)),
+            Text(
+              'Checkout',
+              style: AppTextStyles.heading2.copyWith(fontSize: 16),
+            ),
             Text(
               cartState.restaurantName,
               style: AppTextStyles.caption.copyWith(fontSize: 12),
@@ -124,11 +150,18 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           children: [
             // List of items
             Container(
-              margin: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 6),
+              margin: const EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 16,
+                bottom: 6,
+              ),
               decoration: BoxDecoration(
                 color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.3)),
+                border: Border.all(
+                  color: Theme.of(context).dividerColor.withOpacity(0.3),
+                ),
               ),
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Column(
@@ -137,22 +170,29 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: cartState.items.length,
-                    separatorBuilder: (context, index) => const Divider(height: 1, color: AppColors.divider),
+                    separatorBuilder: (context, index) =>
+                        const Divider(height: 1, color: AppColors.divider),
                     itemBuilder: (context, index) {
                       final item = cartState.items[index];
                       return _buildCartItemRow(item);
                     },
                   ),
                   const Divider(height: 1, color: AppColors.divider),
-                  // Add more items trigger
                   Material(
                     color: Colors.transparent,
                     child: ListTile(
-                      leading: const Icon(Icons.add_circle_outline, color: AppColors.primary),
-                      title: const Text('Add more items', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                      onTap: () {
-                        context.pop();
-                      },
+                      leading: const Icon(
+                        Icons.add_circle_outline,
+                        color: AppColors.primary,
+                      ),
+                      title: const Text(
+                        'Add more items',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                      onTap: () => context.pop(),
                     ),
                   ),
                 ],
@@ -165,7 +205,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               decoration: BoxDecoration(
                 color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.3)),
+                border: Border.all(
+                  color: Theme.of(context).dividerColor.withOpacity(0.3),
+                ),
               ),
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -173,34 +215,54 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 children: [
                   Text(
                     'Offers & Coupons',
-                    style: AppTextStyles.heading2.copyWith(fontSize: 14, fontWeight: FontWeight.bold),
+                    style: AppTextStyles.heading2.copyWith(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   offerState.appliedCode != null
                       ? Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 12,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.success.withOpacity(0.08),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AppColors.success.withOpacity(0.3)),
+                            border: Border.all(
+                              color: AppColors.success.withOpacity(0.3),
+                            ),
                           ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Row(
                                 children: [
-                                  const Icon(Icons.check_circle, color: AppColors.success, size: 20),
+                                  const Icon(
+                                    Icons.check_circle,
+                                    color: AppColors.success,
+                                    size: 20,
+                                  ),
                                   const SizedBox(width: 8),
                                   Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         '"${offerState.appliedCode}" APPLIED',
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.success),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                          color: AppColors.success,
+                                        ),
                                       ),
                                       Text(
                                         'You saved ₹${discount.toStringAsFixed(0)}',
-                                        style: TextStyle(color: Colors.grey[800], fontSize: 12),
+                                        style: TextStyle(
+                                          color: Colors.grey[800],
+                                          fontSize: 12,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -208,10 +270,19 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                               ),
                               TextButton(
                                 onPressed: () {
-                                  ref.read(offerProvider.notifier).removeOffer();
+                                  ref
+                                      .read(offerProvider.notifier)
+                                      .removeOffer();
                                   _couponController.clear();
                                 },
-                                child: const Text('REMOVE', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 12)),
+                                child: const Text(
+                                  'REMOVE',
+                                  style: TextStyle(
+                                    color: Colors.red,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
                               ),
                             ],
                           ),
@@ -228,10 +299,15 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                 child: TextField(
                                   controller: _couponController,
                                   decoration: InputDecoration(
-                                    hintText: 'Enter coupon code (e.g. WELCOME50)',
-                                    hintStyle: AppTextStyles.caption.copyWith(fontSize: 12),
+                                    hintText: 'Enter coupon code',
+                                    hintStyle: AppTextStyles.caption.copyWith(
+                                      fontSize: 12,
+                                    ),
                                     border: InputBorder.none,
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 12,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -243,39 +319,56 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                 onPressed: offerState.isLoading
                                     ? null
                                     : () async {
-                                        if (_couponController.text.trim().isEmpty) return;
+                                        if (_couponController.text
+                                            .trim()
+                                            .isEmpty)
+                                          return;
                                         final success = await ref
                                             .read(offerProvider.notifier)
                                             .validateOffer(
-                                              restaurantId: cartState.restaurantId,
-                                              items: cartState.items.map((e) => {
-                                                'menu_item_id': e.item.id,
-                                                'quantity': e.quantity,
-                                              }).toList(),
+                                              restaurantId:
+                                                  cartState.restaurantId,
+                                              items: cartState.items
+                                                  .map(
+                                                    (e) => {
+                                                      'menu_item_id': e.item.id,
+                                                      'quantity': e.quantity,
+                                                    },
+                                                  )
+                                                  .toList(),
                                               code: _couponController.text,
                                               cartTotal: cartState.total,
                                             );
-                                        if (success) {
-                                          if (context.mounted) {
-                                            AppSnackbar.showSuccess(context, "Promo code applied successfully!");
-                                          }
-                                        } else {
-                                          if (context.mounted) {
-                                            AppSnackbar.showError(context, offerState.errorMessage ?? "Invalid code");
-                                          }
+                                        if (success && context.mounted) {
+                                          AppSnackbar.showSuccess(
+                                            context,
+                                            "Promo code applied successfully!",
+                                          );
+                                        } else if (context.mounted) {
+                                          AppSnackbar.showError(
+                                            context,
+                                            offerState.errorMessage ??
+                                                "Invalid code",
+                                          );
                                         }
                                       },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppColors.primary,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                                  minimumSize: const Size(0, 48),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 20,
+                                  ),
                                 ),
                                 child: offerState.isLoading
                                     ? const SizedBox(
                                         width: 20,
                                         height: 20,
-                                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2,
+                                        ),
                                       )
                                     : const Text('APPLY'),
                               ),
@@ -286,13 +379,81 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               ),
             ),
 
+            // WIRED UP: Address Section
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Theme.of(context).dividerColor.withOpacity(0.3),
+                ),
+              ),
+              child: ListTile(
+                contentPadding: const EdgeInsets.all(16),
+                leading: const Icon(
+                  Icons.location_on,
+                  color: AppColors.primary,
+                  size: 28,
+                ),
+                title: Text(
+                  'Delivery Address',
+                  style: AppTextStyles.heading2.copyWith(fontSize: 14),
+                ),
+                subtitle: Text(
+                  locationState.activeAddressLine.isNotEmpty
+                      ? locationState.activeAddressLine
+                      : 'Tap to select an address',
+                  style: AppTextStyles.caption.copyWith(fontSize: 12),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () =>
+                    _showAddressSelectorSheet(context, ref, locationState),
+              ),
+            ),
+
+            // WIRED UP: Payment Section
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Theme.of(context).dividerColor.withOpacity(0.3),
+                ),
+              ),
+              child: ListTile(
+                contentPadding: const EdgeInsets.all(16),
+                leading: const Icon(
+                  Icons.payment,
+                  color: AppColors.primary,
+                  size: 28,
+                ),
+                title: Text(
+                  'Payment Method',
+                  style: AppTextStyles.heading2.copyWith(fontSize: 14),
+                ),
+                subtitle: Text(
+                  activePaymentMethod?.title ?? 'Tap to select payment',
+                  style: AppTextStyles.caption.copyWith(fontSize: 12),
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () =>
+                    _showPaymentSelectorSheet(context, ref, paymentState),
+              ),
+            ),
+
             // Billing Details Section
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               decoration: BoxDecoration(
                 color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.3)),
+                border: Border.all(
+                  color: Theme.of(context).dividerColor.withOpacity(0.3),
+                ),
               ),
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -300,16 +461,31 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 children: [
                   Text(
                     'Bill Details',
-                    style: AppTextStyles.heading2.copyWith(fontSize: 14, fontWeight: FontWeight.bold),
+                    style: AppTextStyles.heading2.copyWith(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 16),
-                  _buildBillingRow('Item Total', '₹${cartState.subtotal.toStringAsFixed(2)}'),
+                  _buildBillingRow(
+                    'Item Total',
+                    '₹${cartState.subtotal.toStringAsFixed(2)}',
+                  ),
                   const SizedBox(height: 10),
-                  _buildBillingRow('Delivery Partner Fee', '₹${cartState.deliveryFee.toStringAsFixed(2)}'),
+                  _buildBillingRow(
+                    'Delivery Partner Fee',
+                    '₹${cartState.deliveryFee.toStringAsFixed(2)}',
+                  ),
                   const SizedBox(height: 10),
-                  _buildBillingRow('Platform Fee', '₹${cartState.platformFee.toStringAsFixed(2)}'),
+                  _buildBillingRow(
+                    'Platform Fee',
+                    '₹${cartState.platformFee.toStringAsFixed(2)}',
+                  ),
                   const SizedBox(height: 10),
-                  _buildBillingRow('GST & Restaurant Charges', '₹${(cartState.subtotal * 0.05).toStringAsFixed(2)}'),
+                  _buildBillingRow(
+                    'GST & Restaurant Charges',
+                    '₹${(cartState.subtotal * 0.05).toStringAsFixed(2)}',
+                  ),
                   if (discount > 0) ...[
                     const SizedBox(height: 10),
                     _buildBillingRow(
@@ -345,7 +521,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 children: [
                   Text(
                     '₹${grandTotal.toStringAsFixed(0)}',
-                    style: AppTextStyles.heading2.copyWith(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: AppTextStyles.heading2.copyWith(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const Text(
                     'Total Amount',
@@ -358,18 +537,37 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               flex: 2,
               child: SizedBox(
                 height: 52,
+                // WIRED UP: Connects to _placeOrder with loading state
                 child: ElevatedButton(
-                  onPressed: cartState.items.isEmpty
+                  onPressed: (cartState.items.isEmpty || _isPlacingOrder)
                       ? null
-                      : () => context.push(AppRoutes.checkout),
+                      : () => _placeOrder(
+                          grandTotal,
+                          locationState.activeAddressLine,
+                          activePaymentMethod,
+                        ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
-                  child: const Text(
-                    'PROCEED TO CHECKOUT',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                  ),
+                  child: _isPlacingOrder
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          'PLACE ORDER',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
                 ),
               ),
             ),
@@ -392,7 +590,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               children: [
                 Text(
                   item.item.name,
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
                 ),
                 Text(
                   '₹${item.item.price.toStringAsFixed(0)}',
@@ -401,8 +602,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               ],
             ),
           ),
-
-          // Quantity controls
           Container(
             height: 32,
             width: 80,
@@ -415,13 +614,18 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 InkWell(
-                  onTap: () {
-                    ref.read(cartProvider.notifier).removeItem(item.item);
-                  },
-                  borderRadius: const BorderRadius.horizontal(left: Radius.circular(5)),
+                  onTap: () =>
+                      ref.read(cartProvider.notifier).removeItem(item.item),
+                  borderRadius: const BorderRadius.horizontal(
+                    left: Radius.circular(5),
+                  ),
                   child: const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    child: Icon(Icons.remove, size: 12, color: AppColors.primary),
+                    child: Icon(
+                      Icons.remove,
+                      size: 12,
+                      color: AppColors.primary,
+                    ),
                   ),
                 ),
                 Text(
@@ -433,10 +637,16 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   ),
                 ),
                 InkWell(
-                  onTap: () {
-                    ref.read(cartProvider.notifier).addItem(item.item, item.restaurantId, item.restaurantName);
-                  },
-                  borderRadius: const BorderRadius.horizontal(right: Radius.circular(5)),
+                  onTap: () => ref
+                      .read(cartProvider.notifier)
+                      .addItem(
+                        item.item,
+                        item.restaurantId,
+                        item.restaurantName,
+                      ),
+                  borderRadius: const BorderRadius.horizontal(
+                    right: Radius.circular(5),
+                  ),
                   child: const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     child: Icon(Icons.add, size: 12, color: AppColors.primary),
@@ -455,11 +665,19 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     );
   }
 
-  Widget _buildBillingRow(String title, String value, {bool isBold = false, double fontSize = 13, Color? textColor}) {
+  Widget _buildBillingRow(
+    String title,
+    String value, {
+    bool isBold = false,
+    double fontSize = 13,
+    Color? textColor,
+  }) {
     final style = TextStyle(
       fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
       fontSize: fontSize,
-      color: textColor ?? (isBold ? AppColors.textPrimary : AppColors.textSecondary),
+      color:
+          textColor ??
+          (isBold ? AppColors.textPrimary : AppColors.textSecondary),
     );
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -470,12 +688,17 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     );
   }
 
-  // Address Selector Bottom Sheet
-  void _showAddressSelectorSheet(BuildContext context, WidgetRef ref, LocationState locationState) {
+  void _showAddressSelectorSheet(
+    BuildContext context,
+    WidgetRef ref,
+    LocationState locationState,
+  ) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (sheetCtx) => Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -488,7 +711,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 20),
                 child: Center(
-                  child: Text('No saved addresses found. Please add one in Profile tab.'),
+                  child: Text(
+                    'No saved addresses found. Please add one in Profile tab.',
+                  ),
                 ),
               ),
             ] else ...[
@@ -498,17 +723,34 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   itemCount: locationState.savedAddresses.length,
                   itemBuilder: (ctx, index) {
                     final address = locationState.savedAddresses[index];
-                    final isSelected = locationState.activeAddressLine == address.addressLine;
+                    final isSelected =
+                        locationState.activeAddressLine == address.addressLine;
                     return ListTile(
                       leading: Icon(
-                        address.label.toLowerCase().contains('home') ? Icons.home_outlined : Icons.work_outline,
+                        address.label.toLowerCase().contains('home')
+                            ? Icons.home_outlined
+                            : Icons.work_outline,
                         color: AppColors.primary,
                       ),
-                      title: Text(address.label, style: const TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Text(address.addressLine, maxLines: 1, overflow: TextOverflow.ellipsis),
-                      trailing: isSelected ? const Icon(Icons.check_circle, color: AppColors.primary) : null,
+                      title: Text(
+                        address.label,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(
+                        address.addressLine,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: isSelected
+                          ? const Icon(
+                              Icons.check_circle,
+                              color: AppColors.primary,
+                            )
+                          : null,
                       onTap: () {
-                        ref.read(locationProvider.notifier).selectActiveAddress(
+                        ref
+                            .read(locationProvider.notifier)
+                            .selectActiveAddress(
                               address.addressLine,
                               address.latitude,
                               address.longitude,
@@ -527,12 +769,17 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     );
   }
 
-  // Payment Selector Bottom Sheet
-  void _showPaymentSelectorSheet(BuildContext context, WidgetRef ref, PaymentState paymentState) {
+  void _showPaymentSelectorSheet(
+    BuildContext context,
+    WidgetRef ref,
+    PaymentState paymentState,
+  ) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (sheetCtx) => Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -545,36 +792,50 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               child: ListView(
                 shrinkWrap: true,
                 children: [
-                  // Pre-populate actual saved payment methods
                   ...paymentState.methods.map((method) {
                     final isSelected = _selectedPaymentMethod?.id == method.id;
                     IconData payIcon = Icons.payment;
-                    if (method.type == PaymentType.upi) {
+                    if (method.type == PaymentType.upi)
                       payIcon = Icons.account_balance_wallet_outlined;
-                    } else if (method.type == PaymentType.cod) {
+                    else if (method.type == PaymentType.cod)
                       payIcon = Icons.money;
-                    }
 
                     return ListTile(
                       leading: Icon(payIcon, color: AppColors.primary),
-                      title: Text(method.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      title: Text(
+                        method.title,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
                       subtitle: Text(method.subtitle),
-                      trailing: isSelected ? const Icon(Icons.check_circle, color: AppColors.primary) : null,
+                      trailing: isSelected
+                          ? const Icon(
+                              Icons.check_circle,
+                              color: AppColors.primary,
+                            )
+                          : null,
                       onTap: () {
-                        setState(() {
-                          _selectedPaymentMethod = method;
-                        });
+                        setState(() => _selectedPaymentMethod = method);
                         Navigator.pop(sheetCtx);
                       },
                     );
                   }),
-                  // Add Razorpay explicitly
                   ListTile(
-                    leading: const Icon(Icons.flash_on, color: Colors.blueAccent),
-                    title: const Text('Pay via Razorpay', style: TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: const Text('Cards, Netbanking, UPI simulator gateway'),
+                    leading: const Icon(
+                      Icons.flash_on,
+                      color: Colors.blueAccent,
+                    ),
+                    title: const Text(
+                      'Pay via Razorpay',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: const Text(
+                      'Cards, Netbanking, UPI simulator gateway',
+                    ),
                     trailing: _selectedPaymentMethod?.id == 'razorpay_select'
-                        ? const Icon(Icons.check_circle, color: AppColors.primary)
+                        ? const Icon(
+                            Icons.check_circle,
+                            color: AppColors.primary,
+                          )
                         : null,
                     onTap: () {
                       setState(() {
@@ -598,30 +859,43 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     );
   }
 
-  // Razorpay Gateway Simulation Modal Dialog
-  void _showRazorpayGateway(BuildContext context, double total, VoidCallback onSuccess) {
+  void _showRazorpayGateway(
+    BuildContext context,
+    double total,
+    VoidCallback onSuccess,
+  ) {
     showDialog(
       context: context,
-      barrierDismissible: false, // Force interactive response
+      barrierDismissible: false,
       builder: (dialogCtx) {
         bool payLoading = false;
         bool paySuccess = false;
         String selectedSubMethod = 'upi';
 
         return StatefulBuilder(
-          builder: (context, setState) {
+          builder: (context, setModalState) {
             if (paySuccess) {
               return AlertDialog(
                 backgroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 content: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.check_circle, color: Colors.green, size: 70),
+                    const Icon(
+                      Icons.check_circle,
+                      color: Colors.green,
+                      size: 70,
+                    ),
                     const SizedBox(height: 16),
                     const Text(
                       'Payment Successful',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.green),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                        color: Colors.green,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text(
@@ -634,7 +908,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                         Navigator.pop(dialogCtx);
                         onSuccess();
                       },
-                      style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                      ),
                       child: const Text('PROCEED TO TRACKING'),
                     ),
                   ],
@@ -645,20 +921,28 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             if (payLoading) {
               return AlertDialog(
                 backgroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 content: const Padding(
                   padding: EdgeInsets.symmetric(vertical: 24),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       CircularProgressIndicator(color: Colors.blueAccent),
-                      const SizedBox(height: 24),
+                      SizedBox(height: 24),
                       Text(
                         'Processing Payment...',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blueAccent),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blueAccent,
+                        ),
                       ),
-                      const SizedBox(height: 8),
-                      Text('Secure connection via Razorpay API', style: TextStyle(color: Colors.grey, fontSize: 11)),
+                      SizedBox(height: 8),
+                      Text(
+                        'Secure connection via Razorpay API',
+                        style: TextStyle(color: Colors.grey, fontSize: 11),
+                      ),
                     ],
                   ),
                 ),
@@ -666,19 +950,25 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             }
 
             return Dialog(
-              backgroundColor: const Color(0xFF0F172A), // Premium Dark Slate Razorpay color
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+              backgroundColor: const Color(0xFF0F172A),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 40,
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Razorpay Header Banner
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: const BoxDecoration(
                       color: Color(0xFF1E293B),
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(16),
+                      ),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -686,14 +976,31 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                         Row(
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(color: Colors.blueAccent, borderRadius: BorderRadius.circular(4)),
-                              child: const Text('R', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.blueAccent,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text(
+                                'R',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
                             ),
                             const SizedBox(width: 8),
                             const Text(
                               'Razorpay Checkout',
-                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
                             ),
                           ],
                         ),
@@ -701,23 +1008,38 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                           icon: const Icon(Icons.close, color: Colors.grey),
                           onPressed: () {
                             Navigator.pop(dialogCtx);
-                            AppSnackbar.showError(context, "Payment cancelled by user");
+                            AppSnackbar.showError(
+                              context,
+                              "Payment cancelled by user",
+                            );
                           },
                         ),
                       ],
                     ),
                   ),
-
-                  // Amount block
                   Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 24,
+                      horizontal: 20,
+                    ),
                     child: Column(
                       children: [
-                        const Text('AMOUNT TO PAY', style: TextStyle(color: Colors.grey, fontSize: 10, letterSpacing: 0.5)),
+                        const Text(
+                          'AMOUNT TO PAY',
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontSize: 10,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
                         const SizedBox(height: 4),
                         Text(
                           '₹${total.toStringAsFixed(2)}',
-                          style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         const SizedBox(height: 12),
                         const Text(
@@ -727,23 +1049,28 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                       ],
                     ),
                   ),
-
                   const Divider(color: Colors.white12),
-
-                  // Payment method tabs
                   Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const Text('SELECT PAYMENT MODE', style: TextStyle(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.bold)),
+                        const Text(
+                          'SELECT PAYMENT MODE',
+                          style: TextStyle(
+                            color: Colors.white38,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                         const SizedBox(height: 12),
                         _buildRazorpayOption(
                           title: 'Google Pay / UPI',
                           subtitle: 'Instant transfer via mock handle',
                           icon: Icons.account_balance_wallet_outlined,
                           isSelected: selectedSubMethod == 'upi',
-                          onTap: () => setState(() => selectedSubMethod = 'upi'),
+                          onTap: () =>
+                              setModalState(() => selectedSubMethod = 'upi'),
                         ),
                         const SizedBox(height: 8),
                         _buildRazorpayOption(
@@ -751,7 +1078,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                           subtitle: 'Simulate card authorization',
                           icon: Icons.credit_card_outlined,
                           isSelected: selectedSubMethod == 'card',
-                          onTap: () => setState(() => selectedSubMethod = 'card'),
+                          onTap: () =>
+                              setModalState(() => selectedSubMethod = 'card'),
                         ),
                         const SizedBox(height: 8),
                         _buildRazorpayOption(
@@ -759,22 +1087,21 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                           subtitle: 'Mock login gateway',
                           icon: Icons.business,
                           isSelected: selectedSubMethod == 'netbank',
-                          onTap: () => setState(() => selectedSubMethod = 'netbank'),
+                          onTap: () => setModalState(
+                            () => selectedSubMethod = 'netbank',
+                          ),
                         ),
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 12),
-
-                  // Pay Button
                   Padding(
                     padding: const EdgeInsets.all(16),
                     child: ElevatedButton(
                       onPressed: () async {
-                        setState(() => payLoading = true);
+                        setModalState(() => payLoading = true);
                         await Future.delayed(const Duration(seconds: 2));
-                        setState(() {
+                        setModalState(() {
                           payLoading = false;
                           paySuccess = true;
                         });
@@ -783,9 +1110,14 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                         backgroundColor: Colors.blueAccent,
                         foregroundColor: Colors.white,
                         minimumSize: const Size.fromHeight(50),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
-                      child: Text('PAY NOW  ₹${total.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      child: Text(
+                        'PAY NOW  ₹${total.toStringAsFixed(0)}',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ),
                   const Center(
@@ -818,68 +1150,100 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         decoration: BoxDecoration(
           color: isSelected ? const Color(0xFF1E293B) : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: isSelected ? Colors.blueAccent : Colors.white10),
+          border: Border.all(
+            color: isSelected ? Colors.blueAccent : Colors.white10,
+          ),
         ),
         child: Row(
           children: [
-            Icon(icon, color: isSelected ? Colors.blueAccent : Colors.grey, size: 22),
+            Icon(
+              icon,
+              color: isSelected ? Colors.blueAccent : Colors.grey,
+              size: 22,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
-                  Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(color: Colors.grey, fontSize: 11),
+                  ),
                 ],
               ),
             ),
-            if (isSelected) const Icon(Icons.check_circle, color: Colors.blueAccent, size: 18),
+            if (isSelected)
+              const Icon(
+                Icons.check_circle,
+                color: Colors.blueAccent,
+                size: 18,
+              ),
           ],
         ),
       ),
     );
   }
 
-  // Order submission
-  Future<void> _placeOrder() async {
-    final cartState = ref.read(cartProvider);
-    final locationState = ref.read(locationProvider);
-    final discount = ref.read(offerProvider).discount;
-    final grandTotal = (cartState.total - discount).clamp(0.0, double.infinity);
+  // Refactored to receive derived state safely
+  Future<void> _placeOrder(
+    double grandTotal,
+    String addressLine,
+    PaymentMethod? paymentMethod,
+  ) async {
+    if (addressLine.isEmpty) {
+      AppSnackbar.showError(context, "Please select a delivery address");
+      return;
+    }
 
-    final addressLine = locationState.activeAddressLine;
-    final paymentMethod = _selectedPaymentMethod?.title ?? 'Cash on Delivery';
+    final paymentTitle = paymentMethod?.title ?? 'Cash on Delivery';
 
-    if (_selectedPaymentMethod?.id == 'razorpay_select') {
-      // Launch Razorpay simulation gateway
+    if (paymentMethod?.id == 'razorpay_select') {
       _showRazorpayGateway(context, grandTotal, () {
         _createAndSaveOrder(addressLine, 'Razorpay', grandTotal);
       });
     } else {
-      // Direct Cash on Delivery
       setState(() => _isPlacingOrder = true);
       await Future.delayed(const Duration(seconds: 1));
       if (!mounted) return;
+
+      _createAndSaveOrder(addressLine, paymentTitle, grandTotal);
       setState(() => _isPlacingOrder = false);
-      _createAndSaveOrder(addressLine, paymentMethod, grandTotal);
     }
   }
 
-  void _createAndSaveOrder(String addressLine, String paymentMethod, double total) {
+  void _createAndSaveOrder(
+    String addressLine,
+    String paymentMethod,
+    double total,
+  ) {
     final cartState = ref.read(cartProvider);
-    
-    // Generate mock order UUID details
-    final orderId = 'ord_${(10000 + (DateTime.now().millisecondsSinceEpoch % 90000))}';
-    final otp = (1000 + (DateTime.now().millisecondsSinceEpoch % 9000)).toString();
+
+    final orderId =
+        'ord_${(10000 + (DateTime.now().millisecondsSinceEpoch % 90000))}';
+    final otp = (1000 + (DateTime.now().millisecondsSinceEpoch % 9000))
+        .toString();
 
     final order = OrderModel(
       id: orderId,
       restaurantName: cartState.restaurantName,
-      items: cartState.items.map((e) => OrderItem(
-        name: e.item.name,
-        quantity: e.quantity,
-        price: e.item.price,
-      )).toList(),
+      items: cartState.items
+          .map(
+            (e) => OrderItem(
+              name: e.item.name,
+              quantity: e.quantity,
+              price: e.item.price,
+            ),
+          )
+          .toList(),
       grandTotal: total,
       date: _getFormattedDate(),
       status: 'Placed',
@@ -888,17 +1252,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       paymentMethod: paymentMethod,
     );
 
-    // Save order inside dynamic history
     ref.read(orderProvider.notifier).addOrder(order);
-
-    // Clear cart and offers
     ref.read(offerProvider.notifier).removeOffer();
     ref.read(cartProvider.notifier).clearCart();
 
-    // Notify user
     AppSnackbar.showSuccess(context, "Order Placed Successfully!");
-
-    // Navigate to Order Status Tracking page
     context.go(AppRoutes.trackingPath(orderId));
   }
 }
