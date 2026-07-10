@@ -156,46 +156,51 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 top: 16,
                 bottom: 6,
               ),
-              decoration: BoxDecoration(
+              child: Material(
                 color: Theme.of(context).cardColor,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: Theme.of(context).dividerColor.withOpacity(0.3),
-                ),
-              ),
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Column(
-                children: [
-                  ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: cartState.items.length,
-                    separatorBuilder: (context, index) =>
-                        const Divider(height: 1, color: AppColors.divider),
-                    itemBuilder: (context, index) {
-                      final item = cartState.items[index];
-                      return _buildCartItemRow(item);
-                    },
+                clipBehavior: Clip.antiAlias,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color: Theme.of(context).dividerColor.withOpacity(0.3),
                   ),
-                  const Divider(height: 1, color: AppColors.divider),
-                  Material(
-                    color: Colors.transparent,
-                    child: ListTile(
-                      leading: const Icon(
-                        Icons.add_circle_outline,
-                        color: AppColors.primary,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Column(
+                    children: [
+                      ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: cartState.items.length,
+                        separatorBuilder: (context, index) =>
+                            const Divider(height: 1, color: AppColors.divider),
+                        itemBuilder: (context, index) {
+                          final item = cartState.items[index];
+                          return _buildCartItemRow(item);
+                        },
                       ),
-                      title: const Text(
-                        'Add more items',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
+                      const Divider(height: 1, color: AppColors.divider),
+                      Material(
+                        color: Colors.transparent,
+                        child: ListTile(
+                          leading: const Icon(
+                            Icons.add_circle_outline,
+                            color: AppColors.primary,
+                          ),
+                          title: const Text(
+                            'Add more items',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                          onTap: () => context.pop(),
                         ),
                       ),
-                      onTap: () => context.pop(),
-                    ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
 
@@ -382,66 +387,74 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             // WIRED UP: Address Section
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              decoration: BoxDecoration(
+              child: Material(
                 color: Theme.of(context).cardColor,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: Theme.of(context).dividerColor.withOpacity(0.3),
+                clipBehavior: Clip.antiAlias,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color: Theme.of(context).dividerColor.withOpacity(0.3),
+                  ),
                 ),
-              ),
-              child: ListTile(
-                contentPadding: const EdgeInsets.all(16),
-                leading: const Icon(
-                  Icons.location_on,
-                  color: AppColors.primary,
-                  size: 28,
+                child: ListTile(
+                  contentPadding: const EdgeInsets.all(16),
+                  leading: const Icon(
+                    Icons.location_on,
+                    color: AppColors.primary,
+                    size: 28,
+                  ),
+                  title: Text(
+                    'Delivery Address',
+                    style: AppTextStyles.heading2.copyWith(fontSize: 14),
+                  ),
+                  subtitle: Text(
+                    locationState.activeAddressLine.isNotEmpty
+                        ? locationState.activeAddressLine
+                        : 'Tap to select an address',
+                    style: AppTextStyles.caption.copyWith(fontSize: 12),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () =>
+                      _showAddressSelectorSheet(context, ref, locationState),
                 ),
-                title: Text(
-                  'Delivery Address',
-                  style: AppTextStyles.heading2.copyWith(fontSize: 14),
-                ),
-                subtitle: Text(
-                  locationState.activeAddressLine.isNotEmpty
-                      ? locationState.activeAddressLine
-                      : 'Tap to select an address',
-                  style: AppTextStyles.caption.copyWith(fontSize: 12),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () =>
-                    _showAddressSelectorSheet(context, ref, locationState),
               ),
             ),
 
             // WIRED UP: Payment Section
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              decoration: BoxDecoration(
+              child: Material(
                 color: Theme.of(context).cardColor,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: Theme.of(context).dividerColor.withOpacity(0.3),
+                clipBehavior: Clip.antiAlias,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color: Theme.of(context).dividerColor.withOpacity(0.3),
+                  ),
                 ),
-              ),
-              child: ListTile(
-                contentPadding: const EdgeInsets.all(16),
-                leading: const Icon(
-                  Icons.payment,
-                  color: AppColors.primary,
-                  size: 28,
+                child: ListTile(
+                  contentPadding: const EdgeInsets.all(16),
+                  leading: const Icon(
+                    Icons.payment,
+                    color: AppColors.primary,
+                    size: 28,
+                  ),
+                  title: Text(
+                    'Payment Method',
+                    style: AppTextStyles.heading2.copyWith(fontSize: 14),
+                  ),
+                  subtitle: Text(
+                    activePaymentMethod?.title ?? 'Tap to select payment',
+                    style: AppTextStyles.caption.copyWith(fontSize: 12),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () =>
+                      _showPaymentSelectorSheet(context, ref, paymentState),
                 ),
-                title: Text(
-                  'Payment Method',
-                  style: AppTextStyles.heading2.copyWith(fontSize: 14),
-                ),
-                subtitle: Text(
-                  activePaymentMethod?.title ?? 'Tap to select payment',
-                  style: AppTextStyles.caption.copyWith(fontSize: 12),
-                ),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () =>
-                    _showPaymentSelectorSheet(context, ref, paymentState),
               ),
             ),
 

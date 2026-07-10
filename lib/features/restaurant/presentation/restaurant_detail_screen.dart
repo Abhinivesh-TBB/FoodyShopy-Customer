@@ -558,7 +558,7 @@ class _MenuItemTile extends ConsumerWidget {
         .read(cartProvider.notifier)
         .addItem(item, restaurant.id, restaurant.name);
 
-    if (result == 'conflict') {
+    if (result == CartResult.conflict) {
       showDialog(
         context: context,
         builder: (dialogCtx) => AlertDialog(
