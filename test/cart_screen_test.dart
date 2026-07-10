@@ -8,7 +8,7 @@ import 'package:customer_app/core/storage/local_cache.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  testWidgets('CartScreen rendering test', (tester) async {
+  testWidgets('CartScreen rendering test with items', (tester) async {
     SharedPreferences.setMockInitialValues({});
     await LocalCache.init();
 
@@ -18,15 +18,15 @@ void main() {
     container.read(cartProvider.notifier).addItem(
       const MenuItem(
         id: '1',
-        name: 'Pizza',
-        description: 'Cheesy pizza',
+        name: 'Pizza Deluxe',
+        description: 'Cheesy pizza with toppings',
         price: 250,
         imageUrl: '',
         isVeg: true,
         category: 'Food',
       ),
       'rest_1',
-      'Pizza Place',
+      'Pizza Palace',
     );
 
     await tester.pumpWidget(
@@ -40,6 +40,10 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.byType(CartScreen), findsOneWidget);
+    // Verify key UI elements are present
+    expect(find.text('Checkout'), findsOneWidget);
+    expect(find.text('Pizza Palace'), findsOneWidget);
+    expect(find.text('Pizza Deluxe'), findsOneWidget);
+    expect(find.text('₹250'), findsWidgets);
   });
 }

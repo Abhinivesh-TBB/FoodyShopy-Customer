@@ -1,3 +1,27 @@
 {
-    "java.gradle.buildServer.enabled": "off"
+    "java.gradle.buildServer.enabled": "on",
+    "files.watcherExclude": {
+        "**/linux/flutter/ephemeral/**": true,
+        "**/windows/flutter/ephemeral/**": true,
+        "**/macos/flutter/ephemeral/**": true,
+        "**/.dart_tool/**": true,
+        "**/build/**": true,
+        "**/.gradle/**": true
+    },
+    "search.exclude": {
+        "**/linux/flutter/ephemeral/**": true,
+        "**/windows/flutter/ephemeral/**": true,
+        "**/macos/flutter/ephemeral/**": true,
+        "**/.dart_tool/**": true,
+        "**/build/**": true,
+        "**/.gradle/**": true
+    },
+    "java.import.exclusions": [
+        "**/linux/flutter/ephemeral/**",
+        "**/windows/flutter/ephemeral/**",
+        "**/macos/flutter/ephemeral/**",
+        "**/.dart_tool/**",
+        "**/build/**",
+        "**/.gradle/**"
+    ]
 }
